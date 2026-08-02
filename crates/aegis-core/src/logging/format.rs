@@ -63,7 +63,7 @@ fn render_text(record: &LogRecord) -> String {
 
 fn render_json(record: &LogRecord) -> String {
     let fields: Value = if record.fields.is_empty() {
-        Value::Object(Default::default())
+        Value::Object(serde_json::Map::new())
     } else {
         let map = record
             .fields
