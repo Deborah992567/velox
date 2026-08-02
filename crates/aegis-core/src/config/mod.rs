@@ -17,5 +17,5 @@ pub mod validator;
 
 pub use ast::{ConfigNode, ConfigRoot};
 pub use lexer::{Pos, Token, TokenKind, tokenize};
-pub use parser::parse;
+pub use parser::{parse, parse_named};
 pub use validator::{ConfigValidator, validate};

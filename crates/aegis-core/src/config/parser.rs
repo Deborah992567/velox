@@ -19,11 +19,20 @@ use crate::core::{Error, ErrorKind, Result, SourcePos};
 
 /// Parse configuration text into an AST.
 ///
-/// Positions carry `file: "config"`; callers that know the real file path
-/// should remap positions via [`ConfigRoot`] nodes' [`ConfigNode::source_pos`].
+/// Positions carry `file: "config"`; use [`parse_named`] to report a real
+/// file path in diagnostics.
 pub fn parse(input: &str) -> Result<ConfigRoot> {
+    parse_named(input, "config")
+}
+
+/// Parse configuration text, tagging all diagnostics with `file`.
+pub fn parse_named(input: &str, file: &str) -> Result<ConfigRoot> {
     let tokens = tokenize(input)?;
-    let mut parser = Parser { tokens, index: 0 };
+    let mut parser = Parser {
+        tokens,
+        index: 0,
+        file: file.to_owned(),
+    };
     let nodes = parser.parse_directives(false)?;
     parser.expect(TokenKind::Eof)?;
     Ok(ConfigRoot { nodes })
@@ -32,6 +41,7 @@ pub fn parse(input: &str) -> Result<ConfigRoot> {
 struct Parser {
     tokens: Vec<Token>,
     index: usize,
+    file: String,
 }
 
 impl Parser {
@@ -45,6 +55,14 @@ impl Parser {
             self.index += 1;
         }
         token
+    }
+
+    fn error_at(&self, pos: Pos, message: impl Into<String>) -> Error {
+        Error::new(ErrorKind::Parse, message).with_position(SourcePos {
+            file: self.file.clone(),
+            line: pos.line,
+            column: pos.column,
+        })
     }
 
     /// Parse a run of directives, stopping at end of file and (when
@@ -66,7 +84,7 @@ impl Parser {
     fn parse_directive(&mut self) -> Result<ConfigNode> {
         let name_token = self.advance();
         if name_token.kind != TokenKind::Word {
-            return Err(error_at(name_token.pos, "expected a directive name"));
+            return Err(self.error_at(name_token.pos, "expected a directive name"));
         }
 
         let mut args = Vec::new();
@@ -91,13 +109,13 @@ impl Parser {
                     args.push(self.advance().text);
                 }
                 TokenKind::RBrace => {
-                    return Err(error_at(
+                    return Err(self.error_at(
                         self.peek().pos,
                         format!("unexpected '}}', expected ';' after '{}'", name_token.text),
                     ));
                 }
                 TokenKind::Eof => {
-                    return Err(error_at(
+                    return Err(self.error_at(
                         name_token.pos,
                         format!(
                             "unexpected end of file, directive '{}' is incomplete",
@@ -119,20 +137,8 @@ impl Parser {
             } else {
                 format!("expected '{marker}'")
             };
-            Err(error_at(self.peek().pos, message))
+            Err(self.error_at(self.peek().pos, message))
         }
-    }
-}
-
-fn error_at(pos: Pos, message: impl Into<String>) -> Error {
-    Error::new(ErrorKind::Parse, message).with_position(source_position(pos))
-}
-
-fn source_position(pos: Pos) -> SourcePos {
-    SourcePos {
-        file: "config".to_owned(),
-        line: pos.line,
-        column: pos.column,
     }
 }
 
