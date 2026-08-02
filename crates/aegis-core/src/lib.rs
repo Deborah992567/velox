@@ -33,6 +33,85 @@ pub const BINARY_NAME: &str = "aegis";
 pub mod core;
 pub mod logging;
 
+/// Log at an explicit level. Message arguments follow `format!` syntax.
+///
+/// Records are dropped if no global logger is installed or if the level is
+/// below the configured minimum.
+#[macro_export]
+macro_rules! log {
+    ($level:expr, $($arg:tt)+) => {
+        $crate::logging::log_at(
+            $level,
+            module_path!(),
+            format!($($arg)+),
+        )
+    };
+}
+
+/// Log at `debug` level.
+#[macro_export]
+macro_rules! log_debug {
+    ($($arg:tt)+) => {
+        $crate::log!($crate::logging::Level::Debug, $($arg)+)
+    };
+}
+
+/// Log at `info` level.
+#[macro_export]
+macro_rules! log_info {
+    ($($arg:tt)+) => {
+        $crate::log!($crate::logging::Level::Info, $($arg)+)
+    };
+}
+
+/// Log at `notice` level.
+#[macro_export]
+macro_rules! log_notice {
+    ($($arg:tt)+) => {
+        $crate::log!($crate::logging::Level::Notice, $($arg)+)
+    };
+}
+
+/// Log at `warn` level.
+#[macro_export]
+macro_rules! log_warn {
+    ($($arg:tt)+) => {
+        $crate::log!($crate::logging::Level::Warn, $($arg)+)
+    };
+}
+
+/// Log at `error` level.
+#[macro_export]
+macro_rules! log_error {
+    ($($arg:tt)+) => {
+        $crate::log!($crate::logging::Level::Error, $($arg)+)
+    };
+}
+
+/// Log at `crit` level.
+#[macro_export]
+macro_rules! log_crit {
+    ($($arg:tt)+) => {
+        $crate::log!($crate::logging::Level::Crit, $($arg)+)
+    };
+}
+
+/// Log at `alert` level.
+#[macro_export]
+macro_rules! log_alert {
+    ($($arg:tt)+) => {
+        $crate::log!($crate::logging::Level::Alert, $($arg)+)
+    };
+}
+
+/// Log at `emerg` level.
+#[macro_export]
+macro_rules! log_emerg {
+    ($($arg:tt)+) => {
+        $crate::log!($crate::logging::Level::Emerg, $($arg)+)
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::{BINARY_NAME, PROJECT_NAME, VERSION};

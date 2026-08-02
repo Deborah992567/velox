@@ -9,8 +9,8 @@ use std::fs::{File, OpenOptions};
 use std::io::{self, BufWriter, Write};
 use std::path::{Path, PathBuf};
 
-use super::format::{render, LogFormat};
 use super::LogRecord;
+use super::format::{LogFormat, render};
 use crate::core::{Error, Result};
 
 /// A destination for log records.

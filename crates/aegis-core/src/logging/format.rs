@@ -4,9 +4,9 @@
 //! structured fields as an object, text output is human-readable and includes
 //! timestamp, level, and target.
 
-use serde_json::{json, Value};
-use time::format_description::well_known::Rfc3339;
+use serde_json::{Value, json};
 use time::OffsetDateTime;
+use time::format_description::well_known::Rfc3339;
 
 use super::LogRecord;
 
@@ -84,7 +84,7 @@ fn render_json(record: &LogRecord) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{render, LogFormat};
+    use super::{LogFormat, render};
     use crate::logging::Level;
     use crate::logging::LogRecord;
     use time::macros::datetime;
