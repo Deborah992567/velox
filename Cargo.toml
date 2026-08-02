@@ -1,0 +1,51 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/aegis-core",
+    "crates/aegis-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+authors = ["Deborah Iwuh <Uchechiiwuh12@icloud.com>"]
+
+[workspace.lints.rust]
+unsafe_code = "warn"
+missing_debug_implementations = "warn"
+rust_2018_idioms = "deny"
+# Keep the tree warning-free even for common patterns that are not bugs.
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+must_use_candidate = "allow"
+needless_pass_by_value = "allow"
+# We model protocol FSMs with large match arms; size doesn't imply complexity.
+too_many_lines = "allow"
+
+[profile.dev]
+opt-level = 1
+debug = 1
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.bench]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = 1
+
+[profile.test]
+opt-level = 1
