@@ -1,0 +1,15 @@
+[package]
+name = "aegis-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Core library for the Aegis (Velox) web server: networking core, HTTP stack, proxy, and process architecture implemented from scratch."
+repository = "https://github.com/Deborah992567/velox"
+readme = "../../README.md"
+
+[lints]
+workspace = true
+
+[dependencies]

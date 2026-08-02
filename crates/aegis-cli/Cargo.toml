@@ -1,0 +1,20 @@
+[package]
+name = "aegis-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Command-line entry point for the Aegis (Velox) web server: aegis -v/-V/-t/start/stop/reload/restart/status."
+repository = "https://github.com/Deborah992567/velox"
+readme = "../../README.md"
+
+[[bin]]
+name = "aegis"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+aegis-core = { path = "../aegis-core" }
