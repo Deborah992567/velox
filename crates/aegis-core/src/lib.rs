@@ -30,6 +30,7 @@ pub const PROJECT_NAME: &str = "velox";
 /// The server binary name.
 pub const BINARY_NAME: &str = "aegis";
 
+pub mod config;
 pub mod core;
 pub mod logging;
 
