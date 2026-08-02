@@ -21,8 +21,8 @@ future work is listed here; completed items move to `CHANGELOG.md`.
 - [x] Config foundations: lexer, parser (AST with line/column), `aegis -t`
 - [x] CLI skeleton: `aegis -v`, `-V`, `-t`
 
-## Phase 2 — Cross-platform sockets ⬜
-- [ ] TCP/IPv4, TCP/IPv6, Unix domain sockets; non-blocking + options
+## Phase 2 — Cross-platform sockets ✅
+- [x] TCP/IPv4, TCP/IPv6, Unix domain sockets; non-blocking + options
 
 ## Phase 3 — Event loops ⬜
 - [ ] Linux: epoll driver; macOS: kqueue driver; timers; reactor + executor

@@ -32,5 +32,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `configs/aegis.conf.example` reference configuration.
 - Integration tests that spawn the binary; 62 unit + 8 integration tests.
 
+### Phase 2 — Cross-platform sockets
+- `net::InetAddr`: IPv4, IPv6, and Unix domain endpoints; `listen`-style
+  parsing (bare port expands to dual-stack wildcards, bracketed IPv6, `unix:`
+  paths) and raw `sockaddr` conversion.
+- `net` socket layer on `libc`: `socket`/`bind`/`listen`/`accept`,
+  `setsockopt` (reuseaddr, SO_REUSEPORT, keepalive, TCP_NODELAY, IPv6-only),
+  `O_NONBLOCK` control, and `getsockname`/`getpeername` — the crate's single
+  scoped `unsafe` zone with SAFETY comments on every block.
+- `net::SocketOptions`: builder-style listener knobs (reuseport, ipv6_only,
+  keepalive, nodelay, backlog, nonblocking).
+- `net::Listener`: bind + listen + non-blocking accept with per-connection
+  option application; `net::Connection`: owned fd wrapper with addresses,
+  options, and `Read`/`Write`.
+- Tests cover parsing, sockaddr round-trips, IPv4 + Unix accept/echo,
+  SO_REUSEPORT sharing, and bind conflicts.
+
 ### Planned phases
 See [`TODO.md`](TODO.md) for the full phase-by-phase roadmap.
