@@ -185,6 +185,8 @@ mod tests {
     }
 
     #[test]
+    // clippy wants the guard scoped tighter, but it already ends the test.
+    #[allow(clippy::significant_drop_tightening)]
     fn level_filter_drops_below_minimum() {
         let captured = Arc::new(Mutex::new(Vec::new()));
         let mut logger = Logger::new(Level::Warn);
