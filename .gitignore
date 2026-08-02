@@ -1,0 +1,36 @@
+# Rust / cargo
+/target
+**/*.rs.bk
+Cargo.lock.bak
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+
+# Fuzzing artifacts
+fuzz/target
+fuzz/artifacts
+fuzz/corpus
+
+# Test / benchmark artifacts
+bench-results/
+*.profraw
+*.profdata
+*.html.tmp
+
+# Editor / OS
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/
+*.iml
+
+# Local runtime state
+*.pid
+*.log
+/var/
+/tmp/
