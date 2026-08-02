@@ -15,12 +15,12 @@ authors = ["Deborah Iwuh <Uchechiiwuh12@icloud.com>"]
 [workspace.lints.rust]
 unsafe_code = "warn"
 missing_debug_implementations = "warn"
-rust_2018_idioms = "deny"
+rust_2018_idioms = { level = "deny", priority = -1 }
 # Keep the tree warning-free even for common patterns that are not bugs.
 unused_qualifications = "warn"
 
 [workspace.lints.clippy]
-all = "warn"
+all = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
 module_name_repetitions = "allow"

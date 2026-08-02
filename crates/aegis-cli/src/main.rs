@@ -31,11 +31,11 @@ fn main() -> ExitCode {
     let arg = std::env::args().nth(1);
 
     match arg.as_deref() {
-        None | Some("-h") | Some("--help") => {
+        None | Some("-h" | "--help") => {
             print!("{USAGE}");
             ExitCode::SUCCESS
         }
-        Some("-v") | Some("--version") => {
+        Some("-v" | "--version") => {
             println!("{BINARY_NAME} {VERSION}");
             ExitCode::SUCCESS
         }
