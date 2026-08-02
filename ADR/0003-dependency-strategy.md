@@ -28,9 +28,7 @@ worker architecture, and all major server components.
 | Serialization | `serde` `serde_json` | JSON structured logs, config dump, metrics exposition (we generate the Prometheus text format ourselves). |
 | Syscall bindings | `libc` | epoll/kqueue/accept4/sendfile/setsockopt/mmap/signalfd. |
 | CLI parsing | `clap` | Robust `aegis -v/-V/-t/start/stop/reload/restart/status`. |
-| Dev/test | `proptest` `criterion` `tempfile` `rcgen` `libloading` | Property tests, benchmarks, temp dirs, test TLS certs, dynamic module loading. |
-
-**Own implementations (must not be delegated):** HTTP/1.x parser + response
+| Dev/test | `proptest` `criterion` `tempfile` `rcgen` `libloading` | Property tests, benchmarks, temp dirs, test TLS certs, dynamic module loading. |**Own implementations (must not be delegated):** HTTP/1.x parser + response
 engine; HTTP/2 framing/streams/flow-control and HPACK (validated against RFC
 7541 vectors); HTTP/3 framing + QPACK over quinn streams; FastCGI/SCGI/uWSGI
 record codecs; WebSocket frame codec; chunked codec; URL/percent decoding;
@@ -52,3 +50,13 @@ limiter; config lexer/parser/validator; logging pipeline; metrics registry.
 - Audit surface is minimal and concentrated in a few well-known crates.
 - We remain the authors of every correctness-sensitive protocol path that the
   product is judged on.
+
+## Amendment 2026-08-02 — Phase 1 additions
+
+- `serde` + `serde_json`: JSON structured log records and future config AST
+  serialization.
+- `time`: ISO-8601 / RFC 3339 timestamps for logs (and later RFC 7231 dates
+  for HTTP); avoids hand-rolled civil-time arithmetic.
+- `clap` is **deferred** to Phase 17: the Phase 1 CLI (`-v`, `-V`, `-t`) has
+  three flags and is hand-rolled and fully tested; `clap` is introduced when
+  the daemon lifecycle subcommands (`start`/`stop`/`reload`/...) arrive.
