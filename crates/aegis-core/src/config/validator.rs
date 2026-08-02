@@ -35,6 +35,7 @@ struct Rule {
 #[derive(Debug, Clone, Copy)]
 enum ArgCheck {
     PositiveInt,
+    PositiveIntOrAuto,
     Size,
     OnOff,
 }
@@ -70,7 +71,7 @@ impl Rule {
 
 /// The Phase 1 directive registry.
 const RULES: &[Rule] = &[
-    Rule::checked("worker_processes", &[], (1, 1), ArgCheck::PositiveInt),
+    Rule::checked("worker_processes", &[], (1, 1), ArgCheck::PositiveIntOrAuto),
     Rule::new("error_log", &[], (1, 2)),
     Rule::new("events", &[], (0, 0)),
     Rule::checked(
@@ -174,6 +175,7 @@ fn check_args(node: &ConfigNode, check: ArgCheck, file: &str) -> Result<()> {
     let first = &node.args[0];
     let ok = match check {
         ArgCheck::PositiveInt => parse_positive_int(first).is_some(),
+        ArgCheck::PositiveIntOrAuto => first == "auto" || parse_positive_int(first).is_some(),
         ArgCheck::Size => parse_size(first).is_some(),
         ArgCheck::OnOff => matches!(first.as_str(), "on" | "off"),
     };
@@ -330,6 +332,11 @@ http {
                 "for {bad}: {error}"
             );
         }
+    }
+
+    #[test]
+    fn worker_processes_accepts_auto() {
+        validate_text("worker_processes auto;\n").unwrap();
     }
 
     #[test]
