@@ -1,0 +1,49 @@
+# Aegis (Velox) example configuration.
+#
+# A block-less directive ends with ';', a block directive ends with '{' ... '}'.
+# Comments start with '#'. Strings may be quoted to include spaces.
+
+# Number of worker processes: 'auto' probes the CPU count, otherwise a number.
+worker_processes auto;
+
+# Where the error log goes. Destinations: 'stderr', 'stdout', a file path,
+# or 'off'. Levels: debug, info, notice, warn, error, crit, alert, emerg.
+error_log stderr warn;
+
+events {
+    # Maximum simultaneous connections per worker.
+    worker_connections 1024;
+}
+
+http {
+    # Increase the maximum request body size (default 1m).
+    client_max_body_size 16m;
+
+    # How long a keep-alive connection stays open (seconds).
+    keepalive_timeout 65;
+
+    sendfile on;
+
+    # Default Content-Type when none is matched.
+    default_type application/octet-stream;
+
+    server {
+        # Address and port to bind. Optionally 'ssl' (later phases).
+        listen 8080;
+
+        # Virtual host name(s).
+        server_name localhost;
+
+        # Serve files from this directory.
+        root /var/www/html;
+
+        index index.html;
+
+        # Forward matching requests to an upstream instead of serving files.
+        # location /api {
+        #     proxy_pass http://127.0.0.1:3000;
+        # }
+
+        access_log stdout info;
+    }
+}
