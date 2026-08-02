@@ -60,3 +60,11 @@ limiter; config lexer/parser/validator; logging pipeline; metrics registry.
 - `clap` is **deferred** to Phase 17: the Phase 1 CLI (`-v`, `-V`, `-t`) has
   three flags and is hand-rolled and fully tested; `clap` is introduced when
   the daemon lifecycle subcommands (`start`/`stop`/`reload`/...) arrive.
+
+## Amendment 2026-08-02 — Phase 2 addition
+
+- `libc`: direct syscall bindings for the owned networking core
+  (`socket`/`bind`/`listen`/`accept`/`setsockopt`/`fcntl`/`getsockname`/
+  `getpeername`), as the `net` module is the one place in the crate that
+  touches the C socket API. `unsafe_code` is scoped off for `net` only (see
+  `net/mod.rs`); every `unsafe` block carries a `// SAFETY:` comment.
