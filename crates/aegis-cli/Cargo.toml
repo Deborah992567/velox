@@ -18,3 +18,6 @@ workspace = true
 
 [dependencies]
 aegis-core = { path = "../aegis-core" }
+
+[dev-dependencies]
+tempfile = "3"
