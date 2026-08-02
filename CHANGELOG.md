@@ -14,5 +14,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI: fmt + clippy + test on Linux and macOS.
 - Developer workflow (`AGENTS.md`), repository housekeeping.
 
+### Phase 1 — Foundations: errors, logging, configuration, CLI
+- `core::error`: `AegisError` with kind, source chaining, and
+  `file:line:column` positions (`ErrorKind`, `SourcePos`, `Context`).
+- `logging`: severity `Level` (syslog-style), structured `LogRecord`, text and
+  JSON `LogFormat`, `LogSink` (stdout/stderr/file/null) with buffering and
+  reopen, a process-global `Logger` with level filtering and fan-out, and the
+  `log!`/`log_<level>!` macros.
+- `config`: a hand-written lexer with `line:column` tracking, an AST
+  (`ConfigRoot`/`ConfigNode`) with depth-first traversal, a recursive-descent
+  parser, and a validator with a Phase 1 directive registry (context, argument
+  count, and type checks: `worker_processes auto|N`, sizes with `k/m/g`
+  suffixes, `on|off`).
+- `aegis` CLI: `-v`/`--version`, `-V` build information (git revision, rustc,
+  target — captured by `build.rs`), and `-t [FILE]` configuration testing in
+  nginx style with default search paths.
+- `configs/aegis.conf.example` reference configuration.
+- Integration tests that spawn the binary; 62 unit + 8 integration tests.
+
 ### Planned phases
 See [`TODO.md`](TODO.md) for the full phase-by-phase roadmap.

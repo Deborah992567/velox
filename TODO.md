@@ -15,11 +15,11 @@ future work is listed here; completed items move to `CHANGELOG.md`.
 - [x] ADR 0001–0005
 - [x] Workspace + CI + housekeeping
 
-## Phase 1 — Foundations ⬜
-- [ ] Build system polish, crate wiring, error types (`AegisError` with context)
-- [ ] Logging: levels, formats, JSON structured logs, buffered sinks, rotation hooks
-- [ ] Config foundations: lexer, parser (AST with line/column), `aegis -t`
-- [ ] CLI skeleton: `aegis -v`, `-V`, `-t`
+## Phase 1 — Foundations ✅
+- [x] Build system polish, crate wiring, error types (`AegisError` with context)
+- [x] Logging: levels, formats, JSON structured logs, buffered sinks, rotation hooks
+- [x] Config foundations: lexer, parser (AST with line/column), `aegis -t`
+- [x] CLI skeleton: `aegis -v`, `-V`, `-t`
 
 ## Phase 2 — Cross-platform sockets ⬜
 - [ ] TCP/IPv4, TCP/IPv6, Unix domain sockets; non-blocking + options
