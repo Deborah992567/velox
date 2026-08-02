@@ -31,6 +31,7 @@ pub const PROJECT_NAME: &str = "velox";
 pub const BINARY_NAME: &str = "aegis";
 
 pub mod core;
+pub mod logging;
 
 #[cfg(test)]
 mod tests {
