@@ -17,10 +17,10 @@
 //! # Phasing
 //!
 //! The workspace is developed phase by phase; see `TODO.md` in the repository
-//! root for the roadmap. Currently at **Phase 4** (connection manager +
-//! buffers): the cursor-based [`buffer::IoBuf`] and the per-worker
-//! [`connection::ConnectionManager`] that adds backpressure, keep-alive, and
-//! stage timeouts on top of the Phase 3 reactor.
+//! root for the roadmap. Currently at **Phase 5** (HTTP/1.1 parser + response
+//! engine): the [`http`] core model, incremental [`http::http1`] parser with
+//! strict grammar and smuggling defenses, chunked transfer decoding, and an
+//! injection-safe response encoder, on top of the Phase 4 connection manager.
 
 /// The semantic version of this crate, sourced from `Cargo.toml`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -36,6 +36,7 @@ pub mod config;
 pub mod connection;
 pub mod core;
 pub mod event_loop;
+pub mod http;
 pub mod logging;
 pub mod net;
 pub mod platform;
