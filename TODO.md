@@ -27,8 +27,8 @@ future work is listed here; completed items move to `CHANGELOG.md`.
 ## Phase 3 — Event loops ✅
 - [x] Linux: epoll driver; macOS: kqueue driver; timers; reactor + executor
 
-## Phase 4 — Connection manager + buffers ⬜
-- [ ] Connection slab, IoBuf with reclamation, backpressure, keep-alive, timeouts
+## Phase 4 — Connection manager + buffers ✅
+- [x] Connection slab, IoBuf with reclamation, backpressure, keep-alive, timeouts
 
 ## Phase 5 — HTTP/1.1 parser + response engine ⬜
 - [ ] Full method set, chunked, trailers, Expect: 100-continue, pipelining,

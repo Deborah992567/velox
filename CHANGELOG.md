@@ -72,5 +72,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   handle that tasks capture to re-register interest from inside a poll.
 - 120 unit + integration tests across the workspace.
 
+### Phase 4 — Connection manager + buffers
+- `buffer::IoBuf`: cursor-based (start/end) per-connection buffer with
+  `put`/`read`/`peek`, `consume` and prefix-only `try_consume`, `reserve`/
+  `reclaim` (moves the live tail to the front without shrinking the
+  allocation), and a zero-initialized `spare_mut`/`advance_written` window for
+  direct reads off the socket.
+- `connection`: `ConnectionManager` — a cloneable `Rc` handle over a
+  generation-counted `Slab` of per-connection state. `register` forces
+  non-blocking, registers READABLE interest, and arms an idle timer;
+  `close` is idempotent (cancel timer, deregister, drop the slot).
+- `ReadOutcome` (Read/Eof/WouldBlock/Capacity) and `WriteOutcome`
+  (Flushed/Buffered/Backpressured) drive a bounded pipeline: input is capped
+  by the per-connection read cap, and output uses a high/low water-mark pair
+  (hysteresis) so producers pause above the high-water mark and resume only
+  after flushing drains below the low-water mark.
+- `set_stage`/`check_timeout` re-arm per-connection deadline timers by stage
+  (Idle, HeadRead, BodyRead, …) ahead of the HTTP layer; an `EchoHandler`
+  future exercises read → echo → re-arm → clean close on EOF/timeout.
+- `net::set_int_option` exposed for raw `setsockopt` access (test socket
+  tuning); 134 unit + integration tests across the workspace.
+
 ### Planned phases
 See [`TODO.md`](TODO.md) for the full phase-by-phase roadmap.

@@ -57,7 +57,27 @@ executor that runs one task queue per worker process.
 - Readiness is level-triggered: `poll_readable`/`poll_writable` register the
   task's waker and return `Pending`; completion is driven by the loop, and the
   task performs non-blocking I/O, looping back on `WouldBlock`. The
-  `AsyncRead`/`AsyncWrite` poll traits from the design remain Phase 4 work.
+  `AsyncRead`/`AsyncWrite` poll traits from the design were superseded in
+  Phase 4 by an imperative connection manager (see below).
+
+## Implementation notes (Phase 4)
+
+- Per-connection buffering and flow control live in an imperative
+  `ConnectionManager` over a generation-counted slab, not `AsyncRead`/
+  `AsyncWrite` poll traits. Futures (the Phase 5 HTTP handler) call
+  `read`/`write`/`flush` and park on the reactor's readiness wakers directly;
+  this keeps the protocol codec simple while the manager owns backpressure.
+- `buffer::IoBuf` is a cursor-based (start/end) buffer: consumed bytes are
+  reclaimed by memmove without shrinking the allocation, and a zero-initialized
+  spare window (`spare_mut`/`advance_written`) lets the manager read straight
+  off the socket into unread space.
+- Output is bounded by a high/low water-mark pair (hysteresis): the producer
+  gets `WriteOutcome::Backpressured` above the high-water mark and only
+  resumes after flushing drains below the low-water mark; input is bounded by
+  the per-connection read cap (`ReadOutcome::Capacity`).
+- Every connection carries a deadline timer whose `TimeoutKind` the HTTP layer
+  re-arms per stage (Idle, HeadRead, BodyRead, …); `set_stage` swaps the timer
+  under the same slot, so only one timer per connection is ever live.
 
 ## Consequences
 
