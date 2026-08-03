@@ -6,6 +6,10 @@
 //! runs ready tasks, and the loop body ties the two together (see
 //! `docs/architecture.md` §3.1 and ADR 0002).
 
+pub mod executor;
+pub mod reactor;
 pub mod slab;
 
+pub use executor::Executor;
+pub use reactor::Reactor;
 pub use slab::Slab;
