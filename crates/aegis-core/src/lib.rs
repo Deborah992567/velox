@@ -17,9 +17,9 @@
 //! # Phasing
 //!
 //! The workspace is developed phase by phase; see `TODO.md` in the repository
-//! root for the roadmap. Currently at **Phase 2** (cross-platform sockets):
-//! addresses, non-blocking listeners, and connections for IPv4, IPv6, and
-//! Unix domain sockets.
+//! root for the roadmap. Currently at **Phase 3** (event loops): the platform
+//! event drivers — epoll on Linux, kqueue on macOS/BSD — behind one
+//! [`platform::EventDriver`] trait, the timer wheel, and the reactor/executor.
 
 /// The semantic version of this crate, sourced from `Cargo.toml`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -34,6 +34,7 @@ pub mod config;
 pub mod core;
 pub mod logging;
 pub mod net;
+pub mod platform;
 
 /// Log at an explicit level. Message arguments follow `format!` syntax.
 ///
