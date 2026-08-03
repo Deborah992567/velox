@@ -44,6 +44,21 @@ executor that runs one task queue per worker process.
 - **Pure callbacks**: ruled out for HTTP/2/3 complexity; async/await keeps
   those FSMs readable and auditable.
 
+## Implementation notes (Phase 3)
+
+- The executor and reactor are `Rc`/`RefCell`-based and futures need not be
+  `Send`: one worker owns one reactor, and scale-out is by processes (per
+  ADR 0005), so `Send` buys nothing while costing `Arc` overhead and bounds
+  on every future. Wakers are built from a raw `RawWakerVTable` rather than
+  the `Wake` trait, which would require `Send + Sync`.
+- Task scheduling state lives in a `Cell` shared separately from the task, so
+  a task can wake itself from inside its own `poll` (including from reactor
+  readiness dispatch) without a double borrow.
+- Readiness is level-triggered: `poll_readable`/`poll_writable` register the
+  task's waker and return `Pending`; completion is driven by the loop, and the
+  task performs non-blocking I/O, looping back on `WouldBlock`. The
+  `AsyncRead`/`AsyncWrite` poll traits from the design remain Phase 4 work.
+
 ## Consequences
 
 - We own the performance-critical dispatch path and can add io_uring without

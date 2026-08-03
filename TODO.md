@@ -24,8 +24,8 @@ future work is listed here; completed items move to `CHANGELOG.md`.
 ## Phase 2 — Cross-platform sockets ✅
 - [x] TCP/IPv4, TCP/IPv6, Unix domain sockets; non-blocking + options
 
-## Phase 3 — Event loops ⬜
-- [ ] Linux: epoll driver; macOS: kqueue driver; timers; reactor + executor
+## Phase 3 — Event loops ✅
+- [x] Linux: epoll driver; macOS: kqueue driver; timers; reactor + executor
 
 ## Phase 4 — Connection manager + buffers ⬜
 - [ ] Connection slab, IoBuf with reclamation, backpressure, keep-alive, timeouts
