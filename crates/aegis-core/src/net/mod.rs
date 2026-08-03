@@ -21,4 +21,4 @@ mod socket;
 pub use addr::InetAddr;
 pub use connection::Connection;
 pub use listener::Listener;
-pub use socket::{SocketOptions, create_socket, set_nonblocking};
+pub use socket::{SocketOptions, create_socket, set_int_option, set_nonblocking};

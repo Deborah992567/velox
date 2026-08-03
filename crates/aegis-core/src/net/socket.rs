@@ -156,6 +156,30 @@ pub fn set_bool_option(
     }
 }
 
+/// Set an integer socket option (e.g. buffer sizes).
+pub fn set_int_option(
+    fd: RawFd,
+    level: libc::c_int,
+    name: libc::c_int,
+    value: libc::c_int,
+) -> io::Result<()> {
+    // SAFETY: setsockopt with a pointer to a valid c_int.
+    let rc = unsafe {
+        libc::setsockopt(
+            fd,
+            level,
+            name,
+            std::ptr::from_ref(&value).cast(),
+            socklen(size_of_val(&value)),
+        )
+    };
+    if rc != 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
+}
+
 /// Enable or disable `O_NONBLOCK` on a descriptor.
 pub fn set_nonblocking(fd: RawFd, on: bool) -> io::Result<()> {
     // SAFETY: fcntl F_GETFL reads the descriptor flags.

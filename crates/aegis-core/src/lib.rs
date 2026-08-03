@@ -17,9 +17,10 @@
 //! # Phasing
 //!
 //! The workspace is developed phase by phase; see `TODO.md` in the repository
-//! root for the roadmap. Currently at **Phase 3** (event loops): the platform
-//! event drivers — epoll on Linux, kqueue on macOS/BSD — behind one
-//! [`platform::EventDriver`] trait, the timer wheel, and the reactor/executor.
+//! root for the roadmap. Currently at **Phase 4** (connection manager +
+//! buffers): the cursor-based [`buffer::IoBuf`] and the per-worker
+//! [`connection::ConnectionManager`] that adds backpressure, keep-alive, and
+//! stage timeouts on top of the Phase 3 reactor.
 
 /// The semantic version of this crate, sourced from `Cargo.toml`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -30,7 +31,9 @@ pub const PROJECT_NAME: &str = "velox";
 /// The server binary name.
 pub const BINARY_NAME: &str = "aegis";
 
+pub mod buffer;
 pub mod config;
+pub mod connection;
 pub mod core;
 pub mod event_loop;
 pub mod logging;
