@@ -10,6 +10,8 @@
 
 use std::fmt;
 
+pub mod limits;
+
 /// An HTTP request method (RFC 9110 §9.1).
 ///
 /// The nine standard methods are modelled as fixed variants; any other legal
