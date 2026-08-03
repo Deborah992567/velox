@@ -32,6 +32,7 @@ pub const BINARY_NAME: &str = "aegis";
 
 pub mod config;
 pub mod core;
+pub mod event_loop;
 pub mod logging;
 pub mod net;
 pub mod platform;
