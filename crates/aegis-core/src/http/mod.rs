@@ -11,6 +11,7 @@
 use std::fmt;
 
 pub mod limits;
+pub mod percent;
 
 /// An HTTP request method (RFC 9110 §9.1).
 ///
