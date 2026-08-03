@@ -35,6 +35,7 @@ pub mod core;
 pub mod logging;
 pub mod net;
 pub mod platform;
+pub mod timers;
 
 /// Log at an explicit level. Message arguments follow `format!` syntax.
 ///
