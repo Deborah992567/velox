@@ -438,6 +438,18 @@ mod tests {
     }
 
     #[test]
+    fn records_expect_continue() {
+        let request = parse_one(
+            b"POST /up HTTP/1.1\r\nHost: x\r\nContent-Length: 5\r\nExpect: 100-continue\r\n\r\n",
+        )
+        .unwrap();
+        assert!(request.expects_continue());
+        let plain =
+            parse_one(b"POST /up HTTP/1.1\r\nHost: x\r\nContent-Length: 5\r\n\r\n").unwrap();
+        assert!(!plain.expects_continue());
+    }
+
+    #[test]
     fn http10_does_not_require_host() {
         let request = parse_one(b"GET / HTTP/1.0\r\n\r\n").unwrap();
         assert_eq!(request.version, Version::Http10);

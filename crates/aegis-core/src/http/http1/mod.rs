@@ -14,6 +14,7 @@
 //! - [`engine`]: injection-safe response encoder.
 
 pub mod chunked;
+pub mod engine;
 pub mod parser;
 
 use crate::http::{Header, HeaderName, is_tchar};

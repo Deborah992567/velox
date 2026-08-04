@@ -758,6 +758,34 @@ impl Request {
     }
 }
 
+/// A response head produced by a handler and encoded by the HTTP/1.x engine.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Response {
+    /// The protocol version to echo on the wire.
+    pub version: Version,
+    /// The status code with its reason phrase.
+    pub status: StatusCode,
+    /// The header fields, in order.
+    pub headers: Headers,
+}
+
+impl Response {
+    /// A response head with no header fields.
+    pub const fn new(version: Version, status: StatusCode) -> Self {
+        Self {
+            version,
+            status,
+            headers: Headers::new(),
+        }
+    }
+
+    /// Append a header field and return the response for chaining.
+    pub fn header(&mut self, name: HeaderName, value: impl AsRef<[u8]>) -> &mut Self {
+        self.headers.push_value(name, value);
+        self
+    }
+}
+
 /// Whether a byte is a valid RFC 9110 token character (`tchar`).
 pub(crate) const fn is_tchar(b: u8) -> bool {
     matches!(
