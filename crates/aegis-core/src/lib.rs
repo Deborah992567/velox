@@ -17,11 +17,12 @@
 //! # Phasing
 //!
 //! The workspace is developed phase by phase; see `TODO.md` in the repository
-//! root for the roadmap. Currently at **Phase 6** (static file server): the
-//! [`http`] core model and incremental [`http::http1`] parser with strict
-//! grammar and smuggling defenses, chunked transfer decoding, and an
-//! injection-safe response encoder from Phase 5, plus the [`static_files`]
-//! MIME detection and HTTP-date handling for serving files from disk.
+//! root for the roadmap. Currently at **Phase 7** (routing + virtual hosts),
+//! on top of the Phase 6 [`static_files`] server: MIME detection, HTTP-date
+//! handling, strong validators with conditional requests, byte ranges,
+//! traversal-safe path resolution, directory listings, a full static file
+//! handler, and zero-copy `sendfile` output — all over the Phase 5 [`http`]
+//! core model and strict [`http::http1`] parser.
 
 /// The semantic version of this crate, sourced from `Cargo.toml`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

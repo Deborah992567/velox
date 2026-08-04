@@ -116,5 +116,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   via `encode_chunk`/`encode_last_chunk`. Adds the shared `Response` head type.
 - 191 unit + integration tests across the workspace.
 
-### Planned phases
+### Phase 6 — Static file server
+- `static_files::mime`: extension-driven `Content-Type` table (case-insensitive,
+  `application/octet-stream` fallback) shared by files, listings, and error
+  pages.
+- `static_files::date`: HTTP-date formatting and parsing — IMF-fixdate plus the
+  two obsolete formats a recipient must accept (RFC 850, asctime), with strict
+  weekday/range validation and RFC 6265 two-digit-year expansion.
+- `static_files::validators`: strong ETags (`"<hex(mtime)>-<hex(size)>"`) and
+  second-granularity `Last-Modified` from `Metadata`, plus conditional-request
+  evaluation (`If-Match` strong, `If-None-Match` weak, `If-Modified-Since`,
+  `If-Unmodified-Since`) with quote-aware list splitting.
+- `static_files::range`: RFC 9110 §14 byte-range parser (`int-range`,
+  `suffix-range`, multiple ranges, `416`/ignore semantics) resolving ranges
+  against a resource length.
+- `static_files::resolver`: percent-decoding → dot-segment normalization →
+  traversal rejection (`403`), plus NUL/backslash rejection and a final
+  under-root containment check (architecture §11).
+- `static_files::listing`: HTML directory listings — dirs first, dotfiles
+  hidden, HTML-escaped display names, percent-encoded hrefs, human-readable
+  sizes.
+- `platform::sendfile`: zero-copy `send_file` helper — Linux `sendfile(2)` and
+  the macOS two-fd variant, returning partial-transfer counts for looping.
+- `static_files::handler`: the orchestrator — `GET`/`HEAD` only (else `405`
+  with `Allow`), `400`/`403` for resolver failures, trailing-slash `301`
+  redirects for directories, index-file fallback, optional listings, `304`
+  from `If-None-Match`/`If-Modified-Since`, and `200`/`206` file responses with
+  `Date`, `ETag`, `Last-Modified`, `Accept-Ranges`, `Content-Type`, and
+  `Content-Range` (`416` with `bytes */len`); bodies are returned as
+  [`StaticBody`] ready for `sendfile`.
+- `HeaderName` gains `LastModified` and `Allow`; 246 unit + integration tests
+  across the workspace.
 See [`TODO.md`](TODO.md) for the full phase-by-phase roadmap.

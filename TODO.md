@@ -34,8 +34,8 @@ future work is listed here; completed items move to `CHANGELOG.md`.
 - [x] Full method set, chunked, trailers, Expect: 100-continue, pipelining,
       smuggling defenses, limits
 
-## Phase 6 — Static file server ⬜
-- [ ] Document roots, MIME, index, listing, ETag/Last-Modified, Range, sendfile
+## Phase 6 — Static file server ✅
+- [x] Document roots, MIME, index, listing, ETag/Last-Modified, Range, sendfile
 
 ## Phase 7 — Routing + virtual hosts ⬜
 - [ ] Exact/prefix/regex locations, precedence, host/port/SNI matching
