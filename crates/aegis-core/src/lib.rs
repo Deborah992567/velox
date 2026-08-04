@@ -42,6 +42,7 @@ pub mod http;
 pub mod logging;
 pub mod net;
 pub mod platform;
+pub mod routing;
 pub mod static_files;
 pub mod timers;
 
