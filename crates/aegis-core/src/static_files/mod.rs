@@ -17,8 +17,11 @@
 //! - [`resolver`] — percent-decoding, normalization, and traversal
 //!   prevention when mapping request-targets to disk paths.
 //! - [`listing`] — HTML directory listing generation.
+//! - [`handler`] — the [`Request`]-to-response orchestration that combines
+//!   everything above.
 
 pub mod date;
+pub mod handler;
 pub mod listing;
 pub mod mime;
 pub mod range;

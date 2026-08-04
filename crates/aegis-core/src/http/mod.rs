@@ -391,6 +391,8 @@ pub enum HeaderName {
     SetCookie,
     /// `location`
     Location,
+    /// `allow`
+    Allow,
     /// `server`
     Server,
     /// `date`
@@ -405,6 +407,8 @@ pub enum HeaderName {
     IfNoneMatch,
     /// `if-modified-since`
     IfModifiedSince,
+    /// `last-modified`
+    LastModified,
     /// `if-unmodified-since`
     IfUnmodifiedSince,
     /// `if-range`
@@ -475,6 +479,7 @@ impl HeaderName {
             "cookie" => Self::Cookie,
             "set-cookie" => Self::SetCookie,
             "location" => Self::Location,
+            "allow" => Self::Allow,
             "server" => Self::Server,
             "date" => Self::Date,
             "cache-control" => Self::CacheControl,
@@ -482,6 +487,7 @@ impl HeaderName {
             "if-match" => Self::IfMatch,
             "if-none-match" => Self::IfNoneMatch,
             "if-modified-since" => Self::IfModifiedSince,
+            "last-modified" => Self::LastModified,
             "if-unmodified-since" => Self::IfUnmodifiedSince,
             "if-range" => Self::IfRange,
             "range" => Self::Range,
@@ -525,6 +531,7 @@ impl HeaderName {
             Self::Cookie => "cookie",
             Self::SetCookie => "set-cookie",
             Self::Location => "location",
+            Self::Allow => "allow",
             Self::Server => "server",
             Self::Date => "date",
             Self::CacheControl => "cache-control",
@@ -532,6 +539,7 @@ impl HeaderName {
             Self::IfMatch => "if-match",
             Self::IfNoneMatch => "if-none-match",
             Self::IfModifiedSince => "if-modified-since",
+            Self::LastModified => "last-modified",
             Self::IfUnmodifiedSince => "if-unmodified-since",
             Self::IfRange => "if-range",
             Self::Range => "range",
