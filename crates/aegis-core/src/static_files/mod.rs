@@ -13,7 +13,9 @@
 //!   obsolete formats a recipient must still accept).
 //! - [`validators`] — strong `ETag`s, `Last-Modified`, and conditional-request
 //!   evaluation.
+//! - [`range`] — byte-range parsing for `206 Partial Content` responses.
 
 pub mod date;
 pub mod mime;
+pub mod range;
 pub mod validators;
