@@ -147,4 +147,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [`StaticBody`] ready for `sendfile`.
 - `HeaderName` gains `LastModified` and `Allow`; 246 unit + integration tests
   across the workspace.
+
+### Phase 7 — Routing + virtual hosts
+- `routing::host`: `Host` parsing (`name`, `name:port`, `[IPv6]:port`, bare
+  IPv6 — malformed values rejected) and nginx-style `server_name` patterns:
+  exact names (optionally port-scoped), `*.suffix` / `prefix.*` wildcards,
+  `~`/`~*` regexes, and the `_` catch-all. `match_names` selects the most
+  specific name: exact > longest wildcard > regex (declaration order) > `_`.
+- `routing::location`: `LocationMatcher` (exact, prefix, `^~` prefix, regex)
+  and `Location<T>` carrying opaque handler config plus an optional named
+  label for internal redirects. `match_location` applies the documented
+  nginx-faithful precedence: exact wins; else longest prefix (a `^~` prefix
+  halts the regex pass); else the first regex in declaration order; else the
+  longest prefix. Prefix matching is a substring test on the raw path; regex
+  locations expose capture groups (optional groups preserved) and can never
+  match a non-UTF-8 path.
+- `routing::router`: `VirtualHost<T>` (names + location table, named-location
+  lookup) and `Router<T>` (host list + default server). `select_host` tries
+  the `Host` header then the SNI value, matching exact > wildcard > regex >
+  catch-all across all servers (nginx order); `route` combines host selection
+  with location dispatch and reports unmatched paths so the caller can answer
+  `404`.
+- `regex` added as a production dependency per ADR 0003 (location regex
+  matching); 275 unit + integration tests across the workspace.
 See [`TODO.md`](TODO.md) for the full phase-by-phase roadmap.

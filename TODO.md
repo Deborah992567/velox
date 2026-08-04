@@ -37,8 +37,8 @@ future work is listed here; completed items move to `CHANGELOG.md`.
 ## Phase 6 — Static file server ✅
 - [x] Document roots, MIME, index, listing, ETag/Last-Modified, Range, sendfile
 
-## Phase 7 — Routing + virtual hosts ⬜
-- [ ] Exact/prefix/regex locations, precedence, host/port/SNI matching
+## Phase 7 — Routing + virtual hosts ✅
+- [x] Exact/prefix/regex locations, precedence, host/port/SNI matching
 
 ## Phase 8 — TLS ⬜
 - [ ] rustls integration, SNI cert selection, session resumption, cert reload

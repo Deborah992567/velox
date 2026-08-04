@@ -260,8 +260,9 @@ timer wheel; expiry → clean teardown + error status.
   responses, sendfile/zero-copy where available, path normalization +
   traversal prevention.
 - **Routing**: exact/prefix/regex locations, named locations, documented route
-  precedence (exact > longest prefix > regex in declaration order), virtual
-  hosts (host + port + SNI matching).
+  precedence following nginx (exact > longest prefix, with `^~` halting the
+  regex pass, > first regex in declaration order, > longest prefix), virtual
+  hosts (host + port + SNI matching; exact > wildcard > regex > `_`).
 - **Proxy**: streaming request/response forwarding, Host rewriting,
   X-Forwarded-For/X-Forwarded-Proto/X-Real-IP, connection reuse/keepalive,
   pooling, buffering, timeouts, body/response streaming, retries, upstream
