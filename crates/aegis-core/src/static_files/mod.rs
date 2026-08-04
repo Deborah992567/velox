@@ -16,8 +16,10 @@
 //! - [`range`] — byte-range parsing for `206 Partial Content` responses.
 //! - [`resolver`] — percent-decoding, normalization, and traversal
 //!   prevention when mapping request-targets to disk paths.
+//! - [`listing`] — HTML directory listing generation.
 
 pub mod date;
+pub mod listing;
 pub mod mime;
 pub mod range;
 pub mod resolver;
