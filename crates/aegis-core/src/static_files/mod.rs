@@ -14,8 +14,11 @@
 //! - [`validators`] — strong `ETag`s, `Last-Modified`, and conditional-request
 //!   evaluation.
 //! - [`range`] — byte-range parsing for `206 Partial Content` responses.
+//! - [`resolver`] — percent-decoding, normalization, and traversal
+//!   prevention when mapping request-targets to disk paths.
 
 pub mod date;
 pub mod mime;
 pub mod range;
+pub mod resolver;
 pub mod validators;
