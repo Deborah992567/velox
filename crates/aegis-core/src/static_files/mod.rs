@@ -11,6 +11,9 @@
 //! - [`mime`] — MIME type detection from file extensions.
 //! - [`date`] — HTTP date formatting and parsing (IMF-fixdate and the two
 //!   obsolete formats a recipient must still accept).
+//! - [`validators`] — strong `ETag`s, `Last-Modified`, and conditional-request
+//!   evaluation.
 
 pub mod date;
 pub mod mime;
+pub mod validators;
