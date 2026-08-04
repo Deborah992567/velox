@@ -17,10 +17,11 @@
 //! # Phasing
 //!
 //! The workspace is developed phase by phase; see `TODO.md` in the repository
-//! root for the roadmap. Currently at **Phase 5** (HTTP/1.1 parser + response
-//! engine): the [`http`] core model, incremental [`http::http1`] parser with
-//! strict grammar and smuggling defenses, chunked transfer decoding, and an
-//! injection-safe response encoder, on top of the Phase 4 connection manager.
+//! root for the roadmap. Currently at **Phase 6** (static file server): the
+//! [`http`] core model and incremental [`http::http1`] parser with strict
+//! grammar and smuggling defenses, chunked transfer decoding, and an
+//! injection-safe response encoder from Phase 5, plus the [`static_files`]
+//! MIME detection and HTTP-date handling for serving files from disk.
 
 /// The semantic version of this crate, sourced from `Cargo.toml`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -40,6 +41,7 @@ pub mod http;
 pub mod logging;
 pub mod net;
 pub mod platform;
+pub mod static_files;
 pub mod timers;
 
 /// Log at an explicit level. Message arguments follow `format!` syntax.
