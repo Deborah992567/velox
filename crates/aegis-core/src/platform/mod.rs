@@ -17,6 +17,7 @@
 mod epoll;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 mod kqueue;
+pub mod sendfile;
 
 use std::io;
 use std::os::fd::RawFd;
