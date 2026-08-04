@@ -30,8 +30,8 @@ future work is listed here; completed items move to `CHANGELOG.md`.
 ## Phase 4 — Connection manager + buffers ✅
 - [x] Connection slab, IoBuf with reclamation, backpressure, keep-alive, timeouts
 
-## Phase 5 — HTTP/1.1 parser + response engine ⬜
-- [ ] Full method set, chunked, trailers, Expect: 100-continue, pipelining,
+## Phase 5 — HTTP/1.1 parser + response engine ✅
+- [x] Full method set, chunked, trailers, Expect: 100-continue, pipelining,
       smuggling defenses, limits
 
 ## Phase 6 — Static file server ⬜

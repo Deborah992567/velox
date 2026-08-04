@@ -93,5 +93,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `net::set_int_option` exposed for raw `setsockopt` access (test socket
   tuning); 134 unit + integration tests across the workspace.
 
+### Phase 5 — HTTP/1.1 parser + response engine
+- Strict header field line parsing: first-colon split, tchar-validated names
+  (obs-fold continuation lines rejected), OWS-stripped values, and control-byte
+  rejection other than HTAB; `trim_ows`, `validate_field_value`, `hex_digit`.
+- `RequestParser`: incremental head FSM that consumes exactly what it is fed
+  and applies `RequestLimits` *during* scanning so a head can never grow
+  unbounded. Request lines split into exactly `method SP target SP version`
+  with tchar-only methods; targets validated against the RFC 9112 forms
+  (origin, asterisk-`OPTIONS`-only, authority-`CONNECT`-only, absolute).
+  Structural smuggling defenses: CL+TE co-presence rejected, single
+  digits-only `Content-Length`, single exactly-`chunked` `Transfer-Encoding`,
+  and a mandatory single `Host` on HTTP/1.1. Errors map to 400/414/431/505;
+  completed heads auto-reset with trailing bytes (body/pipelined request)
+  buffered for `drain_pending`.
+- `ChunkedDecoder`: incremental chunked transfer decoder (RFC 9112 §7.1)
+  writing decoded bytes into a caller buffer, with exact-hex sizes, strict
+  CRLF framing, structural extension checks, and capped trailer parsing.
+- `engine`: injection-safe response encoder — every outgoing field is
+  re-validated (a CR/LF in a value is an error, not a split), framing headers
+  are derived and suppressed for bodyless statuses, and chunked frames stream
+  via `encode_chunk`/`encode_last_chunk`. Adds the shared `Response` head type.
+- 191 unit + integration tests across the workspace.
+
 ### Planned phases
 See [`TODO.md`](TODO.md) for the full phase-by-phase roadmap.
