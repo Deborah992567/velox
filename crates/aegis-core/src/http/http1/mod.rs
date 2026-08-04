@@ -13,6 +13,8 @@
 //! - [`chunked`]: incremental chunked transfer decoder.
 //! - [`engine`]: injection-safe response encoder.
 
+pub mod parser;
+
 use crate::http::{Header, HeaderName, is_tchar};
 
 /// Why a single header field line was rejected.
@@ -78,16 +80,6 @@ fn split_once_colon(line: &[u8]) -> Option<(&[u8], &[u8])> {
     Some((&line[..i], &line[i + 1..]))
 }
 
-/// Decode one hex digit, `None` if `b` is not `0-9`, `a-f`, or `A-F`.
-pub(crate) const fn hex_digit(b: u8) -> Option<u8> {
-    match b {
-        b'0'..=b'9' => Some(b - b'0'),
-        b'a'..=b'f' => Some(b - b'a' + 10),
-        b'A'..=b'F' => Some(b - b'A' + 10),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::{HeaderFieldError, parse_header_field, trim_ows, validate_field_value};
@@ -109,10 +101,22 @@ mod tests {
 
     #[test]
     fn rejects_malformed_fields() {
-        assert_eq!(parse_header_field(b"no-colon"), Err(HeaderFieldError::MissingColon));
-        assert_eq!(parse_header_field(b": value"), Err(HeaderFieldError::EmptyName));
-        assert_eq!(parse_header_field(b"Bad Name: x"), Err(HeaderFieldError::InvalidName));
-        assert_eq!(parse_header_field(b" obs-fold: x"), Err(HeaderFieldError::InvalidName));
+        assert_eq!(
+            parse_header_field(b"no-colon"),
+            Err(HeaderFieldError::MissingColon)
+        );
+        assert_eq!(
+            parse_header_field(b": value"),
+            Err(HeaderFieldError::EmptyName)
+        );
+        assert_eq!(
+            parse_header_field(b"Bad Name: x"),
+            Err(HeaderFieldError::InvalidName)
+        );
+        assert_eq!(
+            parse_header_field(b" obs-fold: x"),
+            Err(HeaderFieldError::InvalidName)
+        );
         assert_eq!(
             parse_header_field(b"X-Tab: bad\x01ctrl"),
             Err(HeaderFieldError::InvalidValue)
@@ -136,4 +140,3 @@ mod tests {
         assert_eq!(trim_ows(b"foo"), b"foo");
     }
 }
-
