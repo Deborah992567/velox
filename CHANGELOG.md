@@ -170,4 +170,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `404`.
 - `regex` added as a production dependency per ADR 0003 (location regex
   matching); 275 unit + integration tests across the workspace.
+
+### Phase 8 — TLS termination
+- `tls::keypair`: `KeyPair` loads a certificate chain + private key from PEM
+  (files or memory) with strict validation: non-empty chain, non-empty
+  certificates, and a key supported by the `ring` signing backend (RSA,
+  ECDSA, Ed25519). Produces rustls `CertifiedKey`s.
+- `tls::resolver`: `SniResolver` implements `ResolvesServerCert`, selecting a
+  certificate by SNI (case-insensitive) and falling back to the default —
+  the nginx behaviour for a `default_server` certificate.
+- `tls::config`: `TlsServerOptions` (TLS 1.3 + 1.2 by default, ALPN
+  `http/1.1`, bounded TLS 1.2 session cache, resumption on) and `TlsConfig`,
+  an immutable, rebuildable `ServerConfig`. `reload()` swaps the certificate
+  resolver live while in-flight connections keep the old config. Resumption
+  uses a ring-based `Ticketer` + `ServerSessionMemoryCache`; disabling it
+  installs no-op ticket/storage impls.
+- `tls::stream`: `TlsStream<S>` drives a rustls `ServerConnection` handshake
+  over any `Read + Write` transport, exposes the negotiated version and ALPN
+  protocol, and forwards plaintext `Read`/`Write`/`flush`.
+- `ErrorKind::Tls` errors surface with the underlying `rustls::Error` as the
+  source; 18 TLS unit tests (full handshakes over `UnixStream` pairs cover
+  ALPN/version negotiation, per-name SNI selection, default fallback, session
+  tickets + reconnect, and live cert reload); 308 tests across the workspace.
 See [`TODO.md`](TODO.md) for the full phase-by-phase roadmap.

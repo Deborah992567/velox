@@ -40,8 +40,8 @@ future work is listed here; completed items move to `CHANGELOG.md`.
 ## Phase 7 — Routing + virtual hosts ✅
 - [x] Exact/prefix/regex locations, precedence, host/port/SNI matching
 
-## Phase 8 — TLS ⬜
-- [ ] rustls integration, SNI cert selection, session resumption, cert reload
+## Phase 8 — TLS ✅
+- [x] rustls integration, SNI cert selection, session resumption, cert reload
 
 ## Phase 9 — Reverse proxy ⬜
 - [ ] Streaming request/response forwarding, header rewriting, retries, timeouts
