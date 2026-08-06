@@ -215,6 +215,12 @@ impl From<ErrorKind> for Error {
     }
 }
 
+impl From<rustls::Error> for Error {
+    fn from(value: rustls::Error) -> Self {
+        Self::new(ErrorKind::Tls, "TLS failure").with_source(value)
+    }
+}
+
 /// Extension trait adding context to results and options.
 ///
 /// Mirrors the `anyhow`/`thiserror` ergonomics without the dependency, and

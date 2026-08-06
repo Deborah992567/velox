@@ -47,6 +47,7 @@ pub mod platform;
 pub mod routing;
 pub mod static_files;
 pub mod timers;
+pub mod tls;
 
 /// Log at an explicit level. Message arguments follow `format!` syntax.
 ///
