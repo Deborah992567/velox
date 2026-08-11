@@ -219,4 +219,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   surfacing as `WouldBlock` on Unix sockets).
 - 51 proxy unit tests (in-memory peers + real Unix-socket upstreams) and 364
   tests across the workspace.
+
+### Phase 10 — Upstream connection pooling
+- `net::socket::peek`: non-blocking `MSG_PEEK` classification of a connected
+  socket (`Empty` quiescent / `Data` leftover pipelined bytes / `Eof` peer
+  closed) via a zero-timeout `poll` + `recv(MSG_PEEK|MSG_DONTWAIT)`.
+- `proxy::pool::UpstreamPool`: a keepalive pool of upstream connections with
+  `PoolOptions` (`max_connections` total per target, `max_idle` kept, `idle_timeout`
+  expiry, `acquire_timeout`). `borrow` draws a healthy idle connection (dropping
+  stale/expired ones detected by `peek`) or connects within the cap, blocking
+  on a condition variable while saturated; `try_borrow` is non-blocking.
+  `close_idle` drains idle connections at shutdown/reload; `in_use`/`idle_len`/
+  `total` report state. Returned connections are reused only when the exchange
+  ended at a message boundary (`PooledConnection::mark_reusable`), else closed.
+- `proxy::exchange`: the retry loop is shared by the direct and pooled paths.
+  `proxy_exchange_pooled` runs the same exchange borrowing from `UpstreamPool`
+  and returns fully-consumed connections to it; close-delimited and failed
+  connections are closed instead. `PoolOptions` `Default` is 32 max / 8 idle /
+  60 s idle / 5 s acquire.
+- 9 pool tests (fd reuse, stale-leftover discard, close-on-non-reusable, capacity
+  blocking, saturated timeout + release wait, `max_idle` trimming, `close_idle`,
+  idle expiry) and 3 pooled-exchange end-to-end tests (single keepalive
+  connection across requests, close-delimited not pooled, retry over the pool);
+  362 tests across the workspace.
 See [`TODO.md`](TODO.md) for the full phase-by-phase roadmap.

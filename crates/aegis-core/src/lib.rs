@@ -17,11 +17,13 @@
 //! # Phasing
 //!
 //! The workspace is developed phase by phase; see `TODO.md` in the repository
-//! root for the roadmap. Currently at **Phase 9** (reverse proxy), on top of
-//! the Phase 8 [`tls`] layer — rustls termination with SNI-based certificate
-//! selection, bounded session resumption, live certificate reload, and a
-//! blocking `TlsStream` wrapper over any transport — and the Phase 7
-//! [`routing`] layer — virtual hosts with `server_name`/SNI/port
+//! root for the roadmap. Currently at **Phase 10** (upstream connection
+//! pooling), on top of the Phase 9 [`proxy`] reverse proxy — `proxy_pass`
+//! parsing, header/target rewriting, and a streaming exchange with retries —
+//! which itself sits on the Phase 8 [`tls`] layer — rustls termination with
+//! SNI-based certificate selection, bounded session resumption, live
+//! certificate reload, and a blocking `TlsStream` wrapper over any transport —
+//! and the Phase 7 [`routing`] layer — virtual hosts with `server_name`/SNI/port
 //! matching and nginx-style location precedence — and the Phase 6
 //! [`static_files`] server: MIME detection, HTTP-date handling, strong
 //! validators with conditional requests, byte ranges, traversal-safe path

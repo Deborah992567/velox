@@ -49,8 +49,8 @@ future work is listed here; completed items move to `CHANGELOG.md`.
       with chunked decode/re-encode, 100-continue, retries (bodyless idempotent),
       connect/read/send timeouts, close-delimited fallback
 
-## Phase 10 — Upstream connection pooling ⬜
-- [ ] Keepalive pool, max connections, lifecycle management
+## Phase 10 — Upstream connection pooling ✅
+- [x] Keepalive pool, max connections, lifecycle management
 
 ## Phase 11 — Load balancing + health checks ⬜
 - [ ] RR / weighted RR / least-connections, passive + active health, backups
