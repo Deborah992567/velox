@@ -1,11 +1,13 @@
 //! The streaming reverse-proxy exchange.
 //!
-//! One blocking exchange per request: connect to the upstream (with the
-//! [`ProxyOptions`] connect timeout, then pinned read/write timeouts), relay
-//! the rewritten request head and body, read the upstream's response head with
-//! [`ResponseParser`], relay `1xx` interim heads, and stream the body back —
-//! decoding upstream `chunked` and re-encoding it for the client so a
-//! close-delimited HTTP/1.0 upstream still produces a properly framed response.
+//! One blocking exchange per request: obtain an upstream connection (from the
+//! Phase 10 [`UpstreamPool`], or a fresh one via the Phase 9 connect path — see
+//! [`proxy_exchange_pooled`] and [`proxy_exchange`]), pin the read/write
+//! timeouts, relay the rewritten request head and body, read the upstream's
+//! response head with [`ResponseParser`], relay `1xx` interim heads, and stream
+//! the body back — decoding upstream `chunked` and re-encoding it for the
+//! client so a close-delimited HTTP/1.0 upstream still produces a properly
+//! framed response.
 //!
 //! Retries are strictly bounded by the phase contract: only bodyless,
 //! idempotent requests, only up to [`ProxyOptions::retries`] extra attempts,
@@ -27,8 +29,10 @@ use crate::http::http1::response::{FeedResult, ResponseParseError, ResponseParse
 use crate::http::{BodyFraming, HeaderName, Headers, Method, Request, Response, Version};
 use crate::net::{Connection, SocketTimeoutSide, connect_with_timeout, set_socket_timeout};
 use crate::proxy::config::{ProxyOptions, ProxyTarget, UpstreamScheme};
+use crate::proxy::pool::UpstreamPool;
 use crate::proxy::rewrite::{RewriteError, rewrite_request_headers, rewrite_target};
 
+use super::pool::PooledConnection;
 use super::rewrite::strip_hop_by_hop;
 
 /// How the exchange ended, from the client connection's point of view.
@@ -82,11 +86,50 @@ const BUFFER: usize = 16 * 1024;
 /// line absorbed into the internal carry" and the unconsumed tail is dropped.
 const SCRATCH: usize = BUFFER * 4;
 
+/// A connection an exchange borrows, with a terminal "keep it alive or close
+/// it" decision. The pooled form returns a reusable connection to the pool;
+/// the direct form is a plain [`Connection`] whose end state does not matter.
+trait UpstreamConnection {
+    /// The underlying stream for the relay.
+    fn conn_mut(&mut self) -> &mut Connection;
+
+    /// Consume the connection after the exchange. `keepalive` is true only
+    /// when the response body was fully consumed to a message boundary.
+    fn finish(self, keepalive: bool);
+}
+
+impl UpstreamConnection for Connection {
+    fn conn_mut(&mut self) -> &mut Connection {
+        self
+    }
+
+    fn finish(self, _keepalive: bool) {}
+}
+
+/// A pooled upstream handle: forwards I/O to the guard and returns it to the
+/// pool (or closes it) when the exchange decides its fate.
+struct PooledUpstream<'a> {
+    guard: PooledConnection<'a>,
+}
+
+impl UpstreamConnection for PooledUpstream<'_> {
+    fn conn_mut(&mut self) -> &mut Connection {
+        self.guard.conn_mut()
+    }
+
+    fn finish(mut self, keepalive: bool) {
+        if keepalive {
+            self.guard.mark_reusable();
+        }
+    }
+}
+
 /// Proxy one request end to end.
 ///
 /// `matched_prefix` is the location prefix the request matched (`None` for a
 /// regex or named-location match), `client_ip` feeds the forwarded-* headers,
-/// and `proto` is `"http"` or `"https"` for `X-Forwarded-Proto`.
+/// and `proto` is `"http"` or `"https"` for `X-Forwarded-Proto`. A fresh
+/// upstream connection is opened for the exchange.
 pub fn proxy_exchange<C: Read + Write>(
     client: &mut C,
     request: &Request,
@@ -96,11 +139,79 @@ pub fn proxy_exchange<C: Read + Write>(
     client_ip: &str,
     proto: &str,
 ) -> Result<ProxyOutcome, ExchangeError> {
+    proxy_exchange_core(
+        client,
+        request,
+        matched_prefix,
+        target,
+        options,
+        client_ip,
+        proto,
+        || connect_upstream(target, options),
+    )
+}
+
+/// Proxy one request end to end, borrowing the upstream connection from `pool`.
+///
+/// Same exchange as [`proxy_exchange`], but the connection is drawn from and
+/// returned to the keepalive pool: when the response body is fully consumed to
+/// a message boundary the connection is reused by the next request to the
+/// target, otherwise it is closed. Retry semantics are unchanged.
+#[allow(clippy::too_many_arguments)]
+pub fn proxy_exchange_pooled<C: Read + Write>(
+    client: &mut C,
+    request: &Request,
+    matched_prefix: Option<&str>,
+    target: &ProxyTarget,
+    options: &ProxyOptions,
+    pool: &UpstreamPool,
+    client_ip: &str,
+    proto: &str,
+) -> Result<ProxyOutcome, ExchangeError> {
+    proxy_exchange_core(
+        client,
+        request,
+        matched_prefix,
+        target,
+        options,
+        client_ip,
+        proto,
+        || {
+            if target.scheme == UpstreamScheme::Https {
+                return Err(ExchangeError::HttpsUpstreamUnsupported);
+            }
+            pool.borrow(target, options)
+                .map(|guard| PooledUpstream { guard })
+                .map_err(ExchangeError::Connect)
+        },
+    )
+}
+
+/// The retry loop shared by the direct and pooled exchanges: acquire an
+/// upstream connection, relay the request, read the response, and report how
+/// the exchange ended. A failed connection is dropped before the next attempt;
+/// a fully-consumed pooled connection is returned to the pool.
+#[allow(clippy::too_many_arguments)]
+fn proxy_exchange_core<C, H, A>(
+    client: &mut C,
+    request: &Request,
+    matched_prefix: Option<&str>,
+    target: &ProxyTarget,
+    options: &ProxyOptions,
+    client_ip: &str,
+    proto: &str,
+    mut acquire: A,
+) -> Result<ProxyOutcome, ExchangeError>
+where
+    C: Read + Write,
+    H: UpstreamConnection,
+    A: FnMut() -> Result<H, ExchangeError>,
+{
     let retryable = request.framing == BodyFraming::None && request.method.is_idempotent();
     let mut attempts = options.retries.saturating_add(1);
     loop {
-        let mut upstream = match connect_upstream(target, options) {
-            Ok(conn) => conn,
+        let mut upstream = match acquire() {
+            Ok(upstream) => upstream,
             Err(error) => {
                 if retryable && attempts > 1 {
                     attempts -= 1;
@@ -109,25 +220,22 @@ pub fn proxy_exchange<C: Read + Write>(
                 return Err(error);
             }
         };
-        match relay_request(
+        if let Err(error) = relay_request(
             client,
-            &mut upstream,
+            upstream.conn_mut(),
             request,
             matched_prefix,
             target,
             client_ip,
             proto,
         ) {
-            Ok(()) => {}
-            Err(error) => {
-                if retryable && attempts > 1 {
-                    attempts -= 1;
-                    continue;
-                }
-                return Err(error);
+            if retryable && attempts > 1 {
+                attempts -= 1;
+                continue;
             }
+            return Err(error);
         }
-        let prepared = match prepare_response(client, &mut upstream, request) {
+        let prepared = match prepare_response(client, upstream.conn_mut(), request) {
             Ok(prepared) => prepared,
             Err(error) => {
                 if retryable && attempts > 1 && !matches!(error, ExchangeError::Relayed(_)) {
@@ -137,7 +245,9 @@ pub fn proxy_exchange<C: Read + Write>(
                 return Err(error);
             }
         };
-        return relay_body(client, &mut upstream, prepared);
+        let outcome = relay_body(client, upstream.conn_mut(), prepared)?;
+        upstream.finish(outcome == ProxyOutcome::Complete);
+        return Ok(outcome);
     }
 }
 
@@ -1077,6 +1187,187 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(error, super::ExchangeError::UpstreamEof));
+        received.join().unwrap();
+    }
+
+    /// Serve `count` requests on a single keep-alive connection, then close
+    /// it. Returns the number of connections the server had to accept.
+    fn serve_keepalive(listener: &crate::net::Listener, count: usize) {
+        let mut conn = listener.accept().expect("accept");
+        for _ in 0..count {
+            let mut buf = Vec::new();
+            let mut tmp = [0u8; 1024];
+            while !buf.windows(4).any(|w| w == b"\r\n\r\n") {
+                let n = conn.read(&mut tmp).expect("read request");
+                if n == 0 {
+                    break;
+                }
+                buf.extend_from_slice(&tmp[..n]);
+            }
+            conn.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+                .expect("write response");
+        }
+    }
+
+    #[test]
+    fn pooled_exchange_reuses_one_upstream_connection() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pooled.sock");
+        let listener = crate::net::Listener::bind(
+            &InetAddr::Unix(path.clone()),
+            crate::net::SocketOptions::new(),
+        )
+        .unwrap();
+        let server = std::thread::spawn(move || serve_keepalive(&listener, 3));
+
+        let target = ProxyTarget::http(InetAddr::Unix(path));
+        let pool = crate::proxy::UpstreamPool::default();
+        let options = ProxyOptions::default();
+        for _ in 0..3 {
+            let mut client = TestIo::new(b"");
+            let request = Request::new(
+                Method::Get,
+                b"/".to_vec(),
+                Version::Http11,
+                Headers::new(),
+                BodyFraming::None,
+            );
+            let outcome = super::proxy_exchange_pooled(
+                &mut client,
+                &request,
+                None,
+                &target,
+                &options,
+                &pool,
+                "10.0.0.1",
+                "http",
+            )
+            .unwrap();
+            assert_eq!(outcome, ProxyOutcome::Complete);
+            assert_eq!(
+                client.output,
+                b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nok"
+            );
+        }
+        // Three requests, one keepalive connection: the pool kept it and the
+        // server never saw a second accept.
+        assert_eq!(pool.total(), 1);
+        assert_eq!(pool.idle_len(), 1);
+        drop(pool);
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn pooled_exchange_closes_connection_after_close_delimited_body() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pooled-close.sock");
+        let listener = crate::net::Listener::bind(
+            &InetAddr::Unix(path.clone()),
+            crate::net::SocketOptions::new(),
+        )
+        .unwrap();
+        let received = std::thread::spawn(move || {
+            let mut conn = listener.accept().expect("accept");
+            let mut tmp = [0u8; 1024];
+            let mut buf = Vec::new();
+            while !buf.windows(4).any(|w| w == b"\r\n\r\n") {
+                let n = conn.read(&mut tmp).expect("read");
+                buf.extend_from_slice(&tmp[..n]);
+            }
+            conn.write_all(b"HTTP/1.1 200 OK\r\n\r\nhello")
+                .expect("write");
+            drop(conn);
+        });
+
+        let target = ProxyTarget::http(InetAddr::Unix(path));
+        let pool = crate::proxy::UpstreamPool::default();
+        let mut client = TestIo::new(b"");
+        let mut headers = Headers::new();
+        headers.push_value(HeaderName::Host, "example.com");
+        let request = Request::new(
+            Method::Get,
+            b"/".to_vec(),
+            Version::Http10,
+            headers,
+            BodyFraming::None,
+        );
+        let outcome = super::proxy_exchange_pooled(
+            &mut client,
+            &request,
+            None,
+            &target,
+            &ProxyOptions::default(),
+            &pool,
+            "10.0.0.1",
+            "http",
+        )
+        .unwrap();
+        assert_eq!(outcome, ProxyOutcome::CloseDelimited);
+        assert_eq!(
+            client.output,
+            b"HTTP/1.0 200 OK\r\nconnection: close\r\n\r\nhello"
+        );
+        // A close-delimited response consumed the connection; nothing is kept.
+        assert_eq!(pool.idle_len(), 0);
+        assert_eq!(pool.total(), 0);
+        received.join().unwrap();
+    }
+
+    #[test]
+    fn pooled_exchange_drops_broken_connection_and_retries() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("pooled-retry.sock");
+        let listener = crate::net::Listener::bind(
+            &InetAddr::Unix(path.clone()),
+            crate::net::SocketOptions::new(),
+        )
+        .unwrap();
+        let responses = vec![
+            b"".to_vec(),
+            b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok".to_vec(),
+        ];
+        let received = std::thread::spawn(move || {
+            for response in responses {
+                if response.is_empty() {
+                    let conn = listener.accept().expect("accept");
+                    drop(conn);
+                } else {
+                    serve_once(&listener, &response);
+                }
+            }
+        });
+
+        let target = ProxyTarget::http(InetAddr::Unix(path));
+        let pool = crate::proxy::UpstreamPool::default();
+        let mut client = TestIo::new(b"");
+        let request = Request::new(
+            Method::Get,
+            b"/".to_vec(),
+            Version::Http11,
+            Headers::new(),
+            BodyFraming::None,
+        );
+        let options = ProxyOptions {
+            retries: 1,
+            ..ProxyOptions::default()
+        };
+        let outcome = super::proxy_exchange_pooled(
+            &mut client,
+            &request,
+            None,
+            &target,
+            &options,
+            &pool,
+            "10.0.0.1",
+            "http",
+        )
+        .unwrap();
+        assert_eq!(outcome, ProxyOutcome::Complete);
+        assert_eq!(
+            client.output,
+            b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nok"
+        );
+        assert_eq!(pool.idle_len(), 1);
         received.join().unwrap();
     }
 }

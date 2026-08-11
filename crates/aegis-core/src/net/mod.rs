@@ -24,6 +24,6 @@ pub use client::{ConnectState, connect, connect_nonblocking, connect_with_timeou
 pub use connection::Connection;
 pub use listener::Listener;
 pub use socket::{
-    SocketOptions, SocketTimeoutSide, create_socket, set_int_option, set_nonblocking,
+    Peek, SocketOptions, SocketTimeoutSide, create_socket, peek, set_int_option, set_nonblocking,
     set_socket_timeout,
 };

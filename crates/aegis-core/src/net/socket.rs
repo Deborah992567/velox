@@ -318,6 +318,62 @@ pub fn set_socket_timeout(
     }
 }
 
+/// What a non-blocking peek found on a connected socket.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Peek {
+    /// No data and no EOF pending; the connection is quiescent and reusable.
+    Empty,
+    /// The peer has already written bytes that nobody consumed — stale
+    /// pipelined data; the connection is not reusable.
+    Data,
+    /// The peer closed (EOF); the connection is dead.
+    Eof,
+}
+
+/// Inspect a connected socket without blocking and without consuming bytes.
+///
+/// A `poll(2)` with zero timeout reports readiness, and a `MSG_PEEK` read
+/// distinguishes "nothing pending" from "bytes pending" from "peer closed".
+/// Used by the upstream pool to weed out idle connections the peer has closed
+/// (or that carry leftover bytes) before handing one to the next request.
+pub fn peek(fd: RawFd) -> io::Result<Peek> {
+    let mut pfd = libc::pollfd {
+        fd,
+        events: libc::POLLIN,
+        revents: 0,
+    };
+    // SAFETY: poll(2) with one valid pollfd entry.
+    let rc = unsafe { libc::poll(&raw mut pfd, 1, 0) };
+    if rc < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    if rc == 0 {
+        return Ok(Peek::Empty);
+    }
+    let mut byte = 0u8;
+    // SAFETY: recv(2) into one valid byte; MSG_PEEK does not consume.
+    let n = unsafe {
+        libc::recv(
+            fd,
+            std::ptr::from_mut(&mut byte).cast(),
+            1,
+            libc::MSG_PEEK | libc::MSG_DONTWAIT,
+        )
+    };
+    match n.cmp(&0) {
+        std::cmp::Ordering::Less => {
+            let error = io::Error::last_os_error();
+            if error.kind() == io::ErrorKind::WouldBlock {
+                Ok(Peek::Empty)
+            } else {
+                Err(error)
+            }
+        }
+        std::cmp::Ordering::Equal => Ok(Peek::Eof),
+        std::cmp::Ordering::Greater => Ok(Peek::Data),
+    }
+}
+
 /// Read the local address bound to a socket (`getsockname`).
 pub fn getsockname(fd: RawFd) -> io::Result<InetAddr> {
     // SAFETY: `storage` is zeroed and big enough for any socket address the
@@ -361,10 +417,13 @@ pub fn getpeername(fd: RawFd) -> io::Result<InetAddr> {
 #[cfg(test)]
 mod tests {
     use super::{
-        SO_REUSEPORT, bind, create_socket, getsockname, listen, set_bool_option, set_nonblocking,
+        Peek, SO_REUSEPORT, bind, create_socket, getsockname, listen, peek, set_bool_option,
+        set_nonblocking,
     };
     use crate::net::addr::InetAddr;
+    use std::io::{Read, Write};
     use std::os::fd::{AsFd, AsRawFd};
+    use std::os::unix::net::UnixStream;
 
     #[test]
     fn creates_ipv4_stream_socket() {
@@ -398,6 +457,21 @@ mod tests {
         set_bool_option(fd, libc::SOL_SOCKET, libc::SO_REUSEADDR, true).unwrap();
         set_bool_option(fd, libc::SOL_SOCKET, SO_REUSEPORT, true).unwrap();
         set_bool_option(fd, libc::SOL_SOCKET, libc::SO_KEEPALIVE, false).unwrap();
+    }
+
+    #[test]
+    fn peek_sees_empty_data_and_eof() {
+        let (mut a, mut b) = UnixStream::pair().unwrap();
+        assert_eq!(peek(a.as_raw_fd()).unwrap(), Peek::Empty);
+        b.write_all(b"x").unwrap();
+        assert_eq!(peek(a.as_raw_fd()).unwrap(), Peek::Data);
+        drop(b);
+        // The byte is still there (peeked, not consumed); EOF only surfaces
+        // once the buffer is drained.
+        assert_eq!(peek(a.as_raw_fd()).unwrap(), Peek::Data);
+        let mut buf = [0u8; 1];
+        a.read_exact(&mut buf).unwrap();
+        assert_eq!(peek(a.as_raw_fd()).unwrap(), Peek::Eof);
     }
 
     #[test]

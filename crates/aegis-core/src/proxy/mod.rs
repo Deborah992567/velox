@@ -1,4 +1,5 @@
-//! Reverse proxy: upstream configuration and the streaming exchange.
+//! Reverse proxy: upstream configuration, the streaming exchange, and the
+//! keepalive connection pool.
 //!
 //! Phase 9 adds an nginx-class reverse proxy on top of the Phase 5 [`http`]
 //! model and the Phase 2 [`net`] transport. The proxy terminates the client
@@ -12,13 +13,16 @@
 //!
 //! Request/response heads are encoded and parsed with the [`crate::http::http1`]
 //! engine, bodies stream through with chunked decoding on the upstream side,
-//! and the exchange is bounded by [`ProxyOptions`] timeouts.
+//! and the exchange is bounded by [`ProxyOptions`] timeouts. Phase 10 keeps
+//! upstream connections alive between requests via [`UpstreamPool`].
 //!
 //! Semantics follow [`crate`] architecture §10 and ADR 0003.
 
 pub mod config;
 pub mod exchange;
+pub mod pool;
 pub mod rewrite;
 
 pub use config::{ProxyOptions, ProxyTarget, UpstreamScheme, parse_proxy_pass};
-pub use exchange::{ExchangeError, ProxyOutcome, proxy_exchange};
+pub use exchange::{ExchangeError, ProxyOutcome, proxy_exchange, proxy_exchange_pooled};
+pub use pool::{PoolOptions, PooledConnection, UpstreamPool};
