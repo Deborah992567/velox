@@ -192,4 +192,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   source; 18 TLS unit tests (full handshakes over `UnixStream` pairs cover
   ALPN/version negotiation, per-name SNI selection, default fallback, session
   tickets + reconnect, and live cert reload); 308 tests across the workspace.
+
+### Phase 9 — Reverse proxy
+- `proxy::config`: nginx-style `proxy_pass` parsing (`http://`, `https://`,
+  `unix:` sockets, explicit ports, IPv6 host brackets, `URI-prefix` semantics)
+  into a resolved `ProxyTarget`; `ProxyOptions` with connect/read/send timeouts
+  and retry count.
+- `proxy::rewrite`: request-target rewriting (verbatim passthrough without a
+  URI part; matched-location-prefix replacement preserving suffix + query),
+  `Host` pinned to the upstream authority, hop-by-hop stripping honouring
+  `Connection` tokens, and `X-Forwarded-For` / `X-Real-IP` /
+  `X-Forwarded-Proto` injection.
+- `proxy::exchange`: a streaming, fully blocking exchange. Request head + body
+  relay (fixed and chunked, chunk decode → re-encode), client
+  `Expect: 100-continue` handling, response-head parsing with interim `1xx`
+  relay and limit checks, framing normalization (TE wins over CL; lone
+  digits-only CL wins; close-delimited fallback chunk-encoded for HTTP/1.1
+  clients and raw with `connection: close` for HTTP/1.0), trailer relay, and
+  socket-level connect/read/send timeouts.
+- Retries: only bodyless idempotent requests, capped at `retries` extra
+  attempts, and only before any byte has reached the client (`Relayed` error
+  guard); `https://` upstreams are parsed but rejected until outbound rustls
+  lands.
+- `Method::is_idempotent`; `net::connect_with_timeout` now restores blocking
+  mode on its immediate-success path (previously left the socket non-blocking,
+  surfacing as `WouldBlock` on Unix sockets).
+- 51 proxy unit tests (in-memory peers + real Unix-socket upstreams) and 364
+  tests across the workspace.
 See [`TODO.md`](TODO.md) for the full phase-by-phase roadmap.

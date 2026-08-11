@@ -43,8 +43,11 @@ future work is listed here; completed items move to `CHANGELOG.md`.
 ## Phase 8 — TLS ✅
 - [x] rustls integration, SNI cert selection, session resumption, cert reload
 
-## Phase 9 — Reverse proxy ⬜
-- [ ] Streaming request/response forwarding, header rewriting, retries, timeouts
+## Phase 9 — Reverse proxy ✅
+- [x] `proxy_pass` parsing (http/https/unix, URI-prefix semantics, IPv6), request
+      target/header rewriting (Host, hop-by-hop, forwarded-*), streaming exchange
+      with chunked decode/re-encode, 100-continue, retries (bodyless idempotent),
+      connect/read/send timeouts, close-delimited fallback
 
 ## Phase 10 — Upstream connection pooling ⬜
 - [ ] Keepalive pool, max connections, lifecycle management
