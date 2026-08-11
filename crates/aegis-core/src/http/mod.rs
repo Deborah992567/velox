@@ -104,6 +104,16 @@ impl Method {
     pub fn response_has_no_body(self) -> bool {
         matches!(self, Self::Head)
     }
+
+    /// Whether repeating the method is safe when the first attempt fails
+    /// before any response bytes reached the client (RFC 9110 §9.2.2). The
+    /// proxy retries only these, and only for bodyless requests.
+    pub const fn is_idempotent(&self) -> bool {
+        matches!(
+            self,
+            Self::Get | Self::Head | Self::Put | Self::Delete | Self::Options | Self::Trace
+        )
+    }
 }
 
 impl fmt::Display for Method {

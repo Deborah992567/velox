@@ -10,12 +10,14 @@
 //!
 //! Sub-modules:
 //! - [`parser`]: incremental request-head parser with smuggling defenses.
+//! - [`response`]: incremental response-head parser (proxy upstream side).
 //! - [`chunked`]: incremental chunked transfer decoder.
 //! - [`engine`]: injection-safe response encoder.
 
 pub mod chunked;
 pub mod engine;
 pub mod parser;
+pub mod response;
 
 use crate::http::{Header, HeaderName, is_tchar};
 

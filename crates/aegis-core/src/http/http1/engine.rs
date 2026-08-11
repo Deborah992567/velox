@@ -11,7 +11,7 @@
 //! without ever holding a whole body.
 
 use super::validate_field_value;
-use crate::http::{BodyFraming, Headers, Response, is_tchar};
+use crate::http::{BodyFraming, Headers, Request, Response, is_tchar};
 
 /// Why a response head could not be encoded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,6 +63,32 @@ pub fn encode_chunk(out: &mut Vec<u8>, data: &[u8]) {
     out.extend_from_slice(b"\r\n");
 }
 
+/// Encode a request head — request line, header fields, framing header, and
+/// the terminating blank line — into `out`.
+///
+/// The framing header (`Content-Length`/`Transfer-Encoding`) is derived from
+/// [`Request::framing`]; callers must therefore strip those two fields from
+/// `request.headers` before encoding (as the proxy's rewrite step does) or
+/// the body would be declared twice.
+pub fn encode_request_head(request: &Request, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+    out.extend_from_slice(request.method.as_bytes());
+    out.extend_from_slice(b" ");
+    out.extend_from_slice(&request.target);
+    out.extend_from_slice(b" ");
+    out.extend_from_slice(request.version.as_str().as_bytes());
+    out.extend_from_slice(b"\r\n");
+    encode_headers(out, &request.headers)?;
+    match request.framing {
+        BodyFraming::None => {}
+        BodyFraming::Length(len) => {
+            out.extend_from_slice(format!("content-length: {len}\r\n").as_bytes());
+        }
+        BodyFraming::Chunked => out.extend_from_slice(b"transfer-encoding: chunked\r\n"),
+    }
+    out.extend_from_slice(b"\r\n");
+    Ok(())
+}
+
 /// Encode the terminating `0` chunk plus an optional trailer block.
 pub fn encode_last_chunk(out: &mut Vec<u8>, trailers: &Headers) -> Result<(), EncodeError> {
     out.extend_from_slice(b"0\r\n");
@@ -87,14 +113,16 @@ fn encode_headers(out: &mut Vec<u8>, headers: &Headers) -> Result<(), EncodeErro
 }
 
 /// Whether a status code may carry a message body: not 1xx, 204, or 304.
-const fn status_allows_body(status: crate::http::StatusCode) -> bool {
+pub(crate) const fn status_allows_body(status: crate::http::StatusCode) -> bool {
     !(status.code() < 200 || status.code() == 204 || status.code() == 304)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{EncodeError, encode_chunk, encode_head, encode_last_chunk};
-    use crate::http::{BodyFraming, Header, HeaderName, Headers, Response, StatusCode, Version};
+    use super::{EncodeError, encode_chunk, encode_head, encode_last_chunk, encode_request_head};
+    use crate::http::{
+        BodyFraming, Header, HeaderName, Headers, Method, Request, Response, StatusCode, Version,
+    };
 
     #[test]
     fn encodes_a_simple_response() {
@@ -190,5 +218,65 @@ mod tests {
         let mut out = Vec::new();
         encode_last_chunk(&mut out, &trailers).unwrap();
         assert_eq!(out, b"0\r\netag: abc\r\n\r\n");
+    }
+
+    #[test]
+    fn encodes_a_simple_request() {
+        let mut headers = Headers::new();
+        headers.push_value(HeaderName::Host, "example.com");
+        headers.push_value(HeaderName::ContentType, "text/plain");
+        let request = Request::new(
+            Method::Get,
+            b"/index.html".to_vec(),
+            Version::Http11,
+            headers,
+            BodyFraming::None,
+        );
+        let mut out = Vec::new();
+        encode_request_head(&request, &mut out).unwrap();
+        assert_eq!(
+            out,
+            b"GET /index.html HTTP/1.1\r\nhost: example.com\r\ncontent-type: text/plain\r\n\r\n"
+        );
+    }
+
+    #[test]
+    fn encodes_request_framing_header() {
+        let mut length = Request::new(
+            Method::Post,
+            b"/up".to_vec(),
+            Version::Http11,
+            Headers::new(),
+            BodyFraming::Length(12),
+        );
+        let mut out = Vec::new();
+        encode_request_head(&length, &mut out).unwrap();
+        assert!(out.ends_with(b"\r\ncontent-length: 12\r\n\r\n"));
+
+        length.framing = BodyFraming::Chunked;
+        let mut out = Vec::new();
+        encode_request_head(&length, &mut out).unwrap();
+        assert!(out.ends_with(b"\r\ntransfer-encoding: chunked\r\n\r\n"));
+    }
+
+    #[test]
+    fn rejects_splitting_via_request_headers() {
+        let mut headers = Headers::new();
+        headers.push_value(
+            HeaderName::Custom("x-evil".into()),
+            "a\r\nContent-Length: 0",
+        );
+        let request = Request::new(
+            Method::Get,
+            b"/".to_vec(),
+            Version::Http11,
+            headers,
+            BodyFraming::None,
+        );
+        let mut out = Vec::new();
+        assert_eq!(
+            encode_request_head(&request, &mut out),
+            Err(EncodeError::InvalidValue)
+        );
     }
 }

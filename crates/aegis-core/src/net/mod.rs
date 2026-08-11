@@ -14,11 +14,16 @@
 #![allow(unsafe_code)]
 
 pub mod addr;
+pub mod client;
 pub mod connection;
 pub mod listener;
 mod socket;
 
 pub use addr::InetAddr;
+pub use client::{ConnectState, connect, connect_nonblocking, connect_with_timeout};
 pub use connection::Connection;
 pub use listener::Listener;
-pub use socket::{SocketOptions, create_socket, set_int_option, set_nonblocking};
+pub use socket::{
+    SocketOptions, SocketTimeoutSide, create_socket, set_int_option, set_nonblocking,
+    set_socket_timeout,
+};

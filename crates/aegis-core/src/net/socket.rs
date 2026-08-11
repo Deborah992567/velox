@@ -6,6 +6,7 @@
 use std::io;
 use std::mem::{size_of, size_of_val};
 use std::os::fd::{FromRawFd, OwnedFd, RawFd};
+use std::time::Duration;
 
 use super::addr::InetAddr;
 
@@ -217,6 +218,99 @@ pub fn bind(fd: RawFd, addr: &InetAddr) -> io::Result<()> {
 pub fn listen(fd: RawFd, backlog: i32) -> io::Result<()> {
     // SAFETY: listen(2) on a valid socket descriptor.
     let rc = unsafe { libc::listen(fd, backlog) };
+    if rc != 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
+}
+
+/// Blocking `connect(2)`.
+///
+/// On a socket that has been placed in non-blocking mode this returns
+/// immediately with `io::ErrorKind::WouldBlock`/`InProgress` instead of
+/// blocking until the connection completes; callers then poll writability and
+/// call [`finish_connect`].
+pub fn connect(fd: RawFd, addr: &InetAddr) -> io::Result<()> {
+    let (storage, len) = addr.to_sockaddr();
+    // SAFETY: connect(2) with a valid sockaddr pointer and length.
+    let rc = unsafe { libc::connect(fd, std::ptr::addr_of!(storage).cast(), len) };
+    if rc != 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
+}
+
+/// Confirm a non-blocking `connect` that reported writability, reading the
+/// socket error (`SO_ERROR`) the kernel stashed on the socket.
+pub fn finish_connect(fd: RawFd) -> io::Result<()> {
+    let mut error: libc::c_int = 0;
+    let mut len = socklen(size_of_val(&error));
+    // SAFETY: getsockopt with a pointer to a valid c_int and matching length.
+    let rc = unsafe {
+        libc::getsockopt(
+            fd,
+            libc::SOL_SOCKET,
+            libc::SO_ERROR,
+            std::ptr::from_mut(&mut error).cast(),
+            &raw mut len,
+        )
+    };
+    if rc != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    if error != 0 {
+        Err(io::Error::from_raw_os_error(error))
+    } else {
+        Ok(())
+    }
+}
+
+/// Which direction a socket timeout applies to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SocketTimeoutSide {
+    /// `SO_RCVTIMEO` — limits a blocking `read`.
+    Read,
+    /// `SO_SNDTIMEO` — limits a blocking `write`.
+    Write,
+}
+
+/// Set (`Some`) or clear (`None`) the receive or send timeout on a socket.
+///
+/// After expiry a blocking call on the socket fails with
+/// `io::ErrorKind::WouldBlock`, which higher layers map onto their own
+/// `TimedOut` semantics.
+pub fn set_socket_timeout(
+    fd: RawFd,
+    side: SocketTimeoutSide,
+    timeout: Option<Duration>,
+) -> io::Result<()> {
+    let (level, name) = match side {
+        SocketTimeoutSide::Read => (libc::SOL_SOCKET, libc::SO_RCVTIMEO),
+        SocketTimeoutSide::Write => (libc::SOL_SOCKET, libc::SO_SNDTIMEO),
+    };
+    let timeval = timeout.map_or(
+        libc::timeval {
+            tv_sec: 0,
+            tv_usec: 0,
+        },
+        |duration| libc::timeval {
+            tv_sec: libc::time_t::try_from(duration.as_secs()).unwrap_or(libc::time_t::MAX),
+            tv_usec: libc::suseconds_t::try_from(duration.subsec_micros())
+                .unwrap_or(libc::suseconds_t::MAX),
+        },
+    );
+    // SAFETY: setsockopt with a pointer to a valid timeval.
+    let rc = unsafe {
+        libc::setsockopt(
+            fd,
+            level,
+            name,
+            std::ptr::from_ref(&timeval).cast(),
+            socklen(size_of_val(&timeval)),
+        )
+    };
     if rc != 0 {
         Err(io::Error::last_os_error())
     } else {
