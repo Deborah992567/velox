@@ -53,6 +53,9 @@ pub enum ExchangeError {
     /// The `proxy_pass` scheme is `https`; an outbound TLS client has not
     /// landed yet, so the target is rejected.
     HttpsUpstreamUnsupported,
+    /// Every server in the upstream group is down (or backups only and they
+    /// are down too); no peer could be selected.
+    NoHealthyUpstream,
     /// Connecting to the upstream failed.
     Connect(io::Error),
     /// Reading from or writing to the upstream failed.
@@ -392,7 +395,7 @@ fn relay_client_chunked<C: Read, U: Write>(
 
 /// Read the upstream's response head, relaying interim `1xx` heads to the
 /// client, and prepare the body relay.
-fn prepare_response<C: Read + Write, U: Read + Write>(
+pub(crate) fn prepare_response<C: Read + Write, U: Read + Write>(
     client: &mut C,
     upstream: &mut U,
     request: &Request,
@@ -485,7 +488,7 @@ fn wrap_if(sent: bool, error: ExchangeError) -> ExchangeError {
 /// The response body relay plan, chosen from the client's HTTP version and the
 /// upstream's framing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum BodyRelay {
+pub(crate) enum BodyRelay {
     /// No body (HEAD, 204, 304, 1xx-final).
     None,
     /// Upstream `Content-Length: n`; relay exactly `n` bytes.
@@ -539,13 +542,13 @@ impl<U: Read> Read for Feed<'_, U> {
 }
 
 /// The response body relay in progress.
-struct PreparedResponse {
+pub(crate) struct PreparedResponse {
     relay: BodyRelay,
     pending: Vec<u8>,
 }
 
 /// Relay the response body and report how the exchange must end.
-fn relay_body<C: Read + Write, U: Read + Write>(
+pub(crate) fn relay_body<C: Read + Write, U: Read + Write>(
     client: &mut C,
     upstream: &mut U,
     prepared: PreparedResponse,
