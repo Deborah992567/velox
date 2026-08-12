@@ -52,8 +52,8 @@ future work is listed here; completed items move to `CHANGELOG.md`.
 ## Phase 10 — Upstream connection pooling ✅
 - [x] Keepalive pool, max connections, lifecycle management
 
-## Phase 11 — Load balancing + health checks ⬜
-- [ ] RR / weighted RR / least-connections, passive + active health, backups
+## Phase 11 — Load balancing + health checks ✅
+- [x] RR / weighted RR / least-connections, passive + active health, backups
 
 ## Phase 12 — WebSockets ⬜
 - [ ] Handshake, frame codec, ping/pong/close/fragmentation, proxying

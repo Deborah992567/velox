@@ -242,4 +242,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   idle expiry) and 3 pooled-exchange end-to-end tests (single keepalive
   connection across requests, close-delimited not pooled, retry over the pool);
   362 tests across the workspace.
+
+### Phase 11 — Load balancing + health checks
+- `proxy::upstream::UpstreamGroup`: a named group of `UpstreamServer` peers
+  (each with `weight`, `backup`, `max_fails`, `fail_timeout`) sharing one
+  `BalancePolicy`, each with its own keepalive `UpstreamPool`. Down servers
+  whose `fail_timeout` has elapsed are revived on the next selection; backups
+  are only used when every primary is down.
+- `BalancePolicy`: `RoundRobin` (cyclic cursor), nginx-style smooth
+  `WeightedRoundRobin` (signed accumulator, `current_weight - total` after each
+  pick, no clumping), and `LeastConnections` (fewest in-flight requests).
+- Passive health: `SelectedPeer::finish_success` resets the failure streak,
+  `SelectedPeer::fail` marks a peer down after `max_fails` consecutive
+  failures; connect/relay/prepare failures on bodyless idempotent requests
+  retry across other peers capped at `ProxyOptions::retries`.
+- Active health: `HealthChecker` spawns a background probe thread over
+  `HealthCheckConfig` (interval, timeout, `ProbeKind::Tcp` or `ProbeKind::Http`
+  requiring a 2xx/3xx status). `probe_all` feeds results into the same
+  passive-health state, bypassing the pools so probes never borrow connections.
+- `proxy::exchange`: the response engine exposes `prepare_response`/`relay_body`
+  and `BodyRelay`/`PreparedResponse` to the balancer; `NoHealthyUpstream` when
+  every server (and backup) is down.
+- `proxy_exchange_lb`: runs the Phase 9 exchange against balanced peers and
+  reports outcomes back to group health; 9 group/balancer/health tests
+  including an end-to-end round-robin exchange over two live Unix-socket
+  upstreams; 386 tests across the workspace.
 See [`TODO.md`](TODO.md) for the full phase-by-phase roadmap.

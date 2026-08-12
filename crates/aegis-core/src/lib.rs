@@ -17,17 +17,19 @@
 //! # Phasing
 //!
 //! The workspace is developed phase by phase; see `TODO.md` in the repository
-//! root for the roadmap. Currently at **Phase 10** (upstream connection
-//! pooling), on top of the Phase 9 [`proxy`] reverse proxy — `proxy_pass`
-//! parsing, header/target rewriting, and a streaming exchange with retries —
-//! which itself sits on the Phase 8 [`tls`] layer — rustls termination with
-//! SNI-based certificate selection, bounded session resumption, live
-//! certificate reload, and a blocking `TlsStream` wrapper over any transport —
-//! and the Phase 7 [`routing`] layer — virtual hosts with `server_name`/SNI/port
-//! matching and nginx-style location precedence — and the Phase 6
-//! [`static_files`] server: MIME detection, HTTP-date handling, strong
-//! validators with conditional requests, byte ranges, traversal-safe path
-//! resolution, directory listings, a full static file handler, and zero-copy
+//! root for the roadmap. Currently at **Phase 11** (load balancing + health
+//! checks), on top of the Phase 10 upstream connection pooling — a keepalive
+//! pool of per-target connections — and the Phase 9 [`proxy`] reverse proxy —
+//! `proxy_pass` parsing, header/target rewriting, and a streaming exchange
+//! with retries — which itself sits on the Phase 8 [`tls`] layer — rustls
+//! termination with SNI-based certificate selection, bounded session
+//! resumption, live certificate reload, and a blocking `TlsStream` wrapper
+//! over any transport — and the Phase 7 [`routing`] layer — virtual hosts
+//! with `server_name`/SNI/port matching and nginx-style location precedence —
+//! and the Phase 6 [`static_files`] server: MIME detection, HTTP-date
+//! handling, strong validators with conditional requests, byte ranges,
+//! traversal-safe path resolution, directory listings, a full static file
+//! handler, and zero-copy
 //! `sendfile` output — all over the Phase 5 [`http`] core model and strict
 //! [`http::http1`] parser.
 
