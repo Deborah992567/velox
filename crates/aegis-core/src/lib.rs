@@ -34,6 +34,7 @@ pub const PROJECT_NAME: &str = "velox";
 pub const BINARY_NAME: &str = "aegis";
 
 pub mod buffer;
+pub mod cache;
 pub mod compression;
 pub mod config;
 pub mod connection;
