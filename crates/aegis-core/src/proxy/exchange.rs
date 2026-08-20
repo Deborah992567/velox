@@ -26,11 +26,17 @@ use crate::http::http1::engine::{
     EncodeError, encode_chunk, encode_head, encode_last_chunk, encode_request_head,
 };
 use crate::http::http1::response::{FeedResult, ResponseParseError, ResponseParser};
-use crate::http::{BodyFraming, HeaderName, Headers, Method, Request, Response, Version};
+use crate::http::{
+    BodyFraming, HeaderName, Headers, Method, Request, Response, StatusCode, Version,
+};
 use crate::net::{Connection, SocketTimeoutSide, connect_with_timeout, set_socket_timeout};
 use crate::proxy::config::{ProxyOptions, ProxyTarget, UpstreamScheme};
 use crate::proxy::pool::UpstreamPool;
-use crate::proxy::rewrite::{RewriteError, rewrite_request_headers, rewrite_target};
+use crate::proxy::rewrite::{
+    RewriteError, rewrite_request_headers, rewrite_target, rewrite_ws_request_headers,
+};
+use crate::proxy::websocket::ws_relay;
+use crate::websocket::handshake::{contains_token, is_websocket_upgrade};
 
 use super::pool::PooledConnection;
 use super::rewrite::strip_hop_by_hop;
@@ -248,6 +254,18 @@ where
                 return Err(error);
             }
         };
+        if prepared.relay == BodyRelay::WsRelay {
+            clear_ws_timeouts(client, upstream.conn_mut());
+            ws_relay(client, upstream.conn_mut()).map_err(|e| {
+                if e.kind() == io::ErrorKind::UnexpectedEof {
+                    ExchangeError::UpstreamEof
+                } else {
+                    ExchangeError::Upstream(e)
+                }
+            })?;
+            upstream.finish(false);
+            return Ok(ProxyOutcome::Complete);
+        }
         let outcome = relay_body(client, upstream.conn_mut(), prepared)?;
         upstream.finish(outcome == ProxyOutcome::Complete);
         return Ok(outcome);
@@ -298,7 +316,11 @@ pub(crate) fn relay_request<C: Read + Write, U: Read + Write>(
     }
     let new_target =
         rewrite_target(request, matched_prefix, target).map_err(ExchangeError::Rewrite)?;
-    let headers = rewrite_request_headers(request, target, client_ip, proto);
+    let headers = if is_websocket_upgrade(request) {
+        rewrite_ws_request_headers(request, target, client_ip, proto)
+    } else {
+        rewrite_request_headers(request, target, client_ip, proto)
+    };
     let rewritten = Request::new(
         request.method.clone(),
         new_target,
@@ -416,7 +438,7 @@ pub(crate) fn prepare_response<C: Read + Write, U: Read + Write>(
             FeedResult::Incomplete => pending.clear(),
             FeedResult::Complete(parsed) => {
                 let rest = parser.drain_pending();
-                if parsed.status.code() < 200 {
+                if parsed.status.code() < 200 && parsed.status.code() != 101 {
                     if matches!(request.version, Version::Http11) {
                         let mut out = Vec::new();
                         encode_head(
@@ -440,6 +462,21 @@ pub(crate) fn prepare_response<C: Read + Write, U: Read + Write>(
             }
         }
     };
+
+    if is_ws_upgrade_response(&head) {
+        let mut out = Vec::new();
+        encode_head(
+            &Response::new(request.version, head.status),
+            BodyFraming::None,
+            &mut out,
+        )
+        .map_err(ExchangeError::RequestEncode)?;
+        client.write_all(&out).map_err(ExchangeError::Client)?;
+        return Ok(PreparedResponse {
+            relay: BodyRelay::WsRelay,
+            pending: Vec::new(),
+        });
+    }
 
     let relay = relay_body_mode(request.version, &head, &request.method);
     let mut relayed = Response::new(request.version, head.status);
@@ -467,7 +504,10 @@ pub(crate) fn prepare_response<C: Read + Write, U: Read + Write>(
     let framing = match relay {
         BodyRelay::Fixed(len) => BodyFraming::Length(len),
         BodyRelay::DecodeChunked | BodyRelay::EncodeRawChunked => BodyFraming::Chunked,
-        BodyRelay::None | BodyRelay::DecodeRaw | BodyRelay::RawToClose => BodyFraming::None,
+        BodyRelay::None
+        | BodyRelay::DecodeRaw
+        | BodyRelay::RawToClose
+        | BodyRelay::WsRelay => BodyFraming::None,
     };
     let mut out = Vec::new();
     encode_head(&relayed, framing, &mut out).map_err(ExchangeError::RequestEncode)?;
@@ -483,6 +523,26 @@ fn wrap_if(sent: bool, error: ExchangeError) -> ExchangeError {
     } else {
         error
     }
+}
+
+/// Clear socket timeouts on both sides of a WebSocket relay so idle
+/// connections do not time out. Best-effort; ignores errors.
+pub(crate) fn clear_ws_timeouts<C: Read + Write, U: Read + Write + AsRawFd>(
+    _client: &mut C,
+    #[allow(clippy::needless_pass_by_ref_mut)] upstream: &mut U,
+) {
+    let _ = set_socket_timeout(upstream.as_raw_fd(), SocketTimeoutSide::Read, None);
+    let _ = set_socket_timeout(upstream.as_raw_fd(), SocketTimeoutSide::Write, None);
+}
+
+/// Whether the upstream responded with `101 Switching Protocols` for a
+/// WebSocket upgrade (`Upgrade: websocket` header present).
+fn is_ws_upgrade_response(head: &crate::http::http1::response::ResponseHead) -> bool {
+    head.status == StatusCode::SWITCHING_PROTOCOLS
+        && head
+            .headers
+            .get(&HeaderName::Upgrade)
+            .is_some_and(|value| contains_token(value, "websocket"))
 }
 
 /// The response body relay plan, chosen from the client's HTTP version and the
@@ -501,6 +561,8 @@ pub(crate) enum BodyRelay {
     DecodeRaw,
     /// HTTP/1.0 client, upstream close-delimited; relay raw, then close.
     RawToClose,
+    /// WebSocket upgrade: bidirectional relay after a 101 response.
+    WsRelay,
 }
 
 /// How to relay the body for a (client version, upstream framing) pair.
@@ -543,7 +605,7 @@ impl<U: Read> Read for Feed<'_, U> {
 
 /// The response body relay in progress.
 pub(crate) struct PreparedResponse {
-    relay: BodyRelay,
+    pub(crate) relay: BodyRelay,
     pending: Vec<u8>,
 }
 
@@ -560,6 +622,7 @@ pub(crate) fn relay_body<C: Read + Write, U: Read + Write>(
     };
     match prepared.relay {
         BodyRelay::None => Ok(ProxyOutcome::Complete),
+        BodyRelay::WsRelay => unreachable!("handled by caller"),
         BodyRelay::Fixed(len) => {
             relay_upstream_fixed(&mut feed, client, len)?;
             Ok(ProxyOutcome::Complete)
@@ -1372,5 +1435,137 @@ mod tests {
         );
         assert_eq!(pool.idle_len(), 1);
         received.join().unwrap();
+    }
+
+    fn ws_upgrade_request() -> Request {
+        let mut headers = Headers::new();
+        headers.push_value(HeaderName::Host, "example.com");
+        headers.push_value(HeaderName::Connection, "Upgrade");
+        headers.push_value(HeaderName::Upgrade, "websocket");
+        headers.push_value(HeaderName::Custom("sec-websocket-version".into()), "13");
+        headers.push_value(
+            HeaderName::Custom("sec-websocket-key".into()),
+            "dGhlIHNhbXBsZSBub25jZQ==",
+        );
+        Request::new(
+            Method::Get,
+            b"/ws".to_vec(),
+            Version::Http11,
+            headers,
+            BodyFraming::None,
+        )
+    }
+
+    #[test]
+    fn ws_upgrade_relay_preserves_upgrade_headers_upstream() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("ws-upgrade.sock");
+        let listener = crate::net::Listener::bind(
+            &InetAddr::Unix(path.clone()),
+            crate::net::SocketOptions::new(),
+        )
+        .unwrap();
+        let server = std::thread::spawn(move || {
+            let mut conn = listener.accept().expect("accept");
+            let mut buf = Vec::new();
+            let mut tmp = [0u8; 1024];
+            while !buf.windows(4).any(|w| w == b"\r\n\r\n") {
+                let n = conn.read(&mut tmp).expect("read");
+                if n == 0 {
+                    break;
+                }
+                buf.extend_from_slice(&tmp[..n]);
+            }
+            let head = String::from_utf8_lossy(&buf);
+            assert!(
+                head.contains("upgrade: websocket\r\n"),
+                "must forward upgrade header: {head}"
+            );
+            assert!(
+                head.contains("connection: Upgrade\r\n"),
+                "must forward connection upgrade: {head}"
+            );
+            assert!(
+                head.contains("sec-websocket-version: 13\r\n"),
+                "must forward version: {head}"
+            );
+            assert!(
+                head.contains("sec-websocket-key: dGhlIHNhbXBsZSBub25jZQ==\r\n"),
+                "must forward key unchanged: {head}"
+            );
+            conn.write_all(
+                b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n",
+            )
+            .unwrap();
+            // Echo back raw bytes
+            let mut buf = [0u8; 64];
+            if let Ok(n) = conn.read(&mut buf) {
+                let _ = conn.write_all(&buf[..n]);
+            }
+        });
+
+        let target = ProxyTarget::http(InetAddr::Unix(path));
+        let mut client = TestIo::new(b"");
+        let request = ws_upgrade_request();
+        let outcome = super::proxy_exchange(
+            &mut client,
+            &request,
+            None,
+            &target,
+            &ProxyOptions::default(),
+            "10.0.0.1",
+            "http",
+        )
+        .unwrap();
+        assert_eq!(outcome, ProxyOutcome::Complete);
+        let response = String::from_utf8_lossy(&client.output);
+        assert!(
+            response.contains("HTTP/1.1 101"),
+            "client must see 101: {response}"
+        );
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn ws_upgrade_relay_does_not_try_when_upstream_rejects() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("ws-reject.sock");
+        let listener = crate::net::Listener::bind(
+            &InetAddr::Unix(path.clone()),
+            crate::net::SocketOptions::new(),
+        )
+        .unwrap();
+        let server = std::thread::spawn(move || {
+            let mut conn = listener.accept().expect("accept");
+            let mut buf = Vec::new();
+            let mut tmp = [0u8; 1024];
+            while !buf.windows(4).any(|w| w == b"\r\n\r\n") {
+                let n = conn.read(&mut tmp).expect("read");
+                if n == 0 {
+                    break;
+                }
+                buf.extend_from_slice(&tmp[..n]);
+            }
+            conn.write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")
+                .unwrap();
+        });
+
+        let target = ProxyTarget::http(InetAddr::Unix(path));
+        let mut client = TestIo::new(b"");
+        let request = ws_upgrade_request();
+        let outcome = super::proxy_exchange(
+            &mut client,
+            &request,
+            None,
+            &target,
+            &ProxyOptions::default(),
+            "10.0.0.1",
+            "http",
+        )
+        .unwrap();
+        assert_eq!(outcome, ProxyOutcome::Complete);
+        let response = String::from_utf8_lossy(&client.output);
+        assert!(response.contains("403"), "must relay 403: {response}");
+        server.join().unwrap();
     }
 }

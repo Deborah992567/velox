@@ -93,6 +93,49 @@ pub fn rewrite_request_headers(
     out
 }
 
+/// Rewrite headers for a WebSocket upgrade request going upstream.
+///
+/// Unlike [`rewrite_request_headers`] this preserves the `Connection: Upgrade`,
+/// `Upgrade: websocket`, and `Sec-WebSocket-*` headers the upstream needs to
+/// accept the handshake (RFC 6455 §8.1.3 requires the proxy to forward the
+/// client's `Sec-WebSocket-Key` unchanged).
+pub fn rewrite_ws_request_headers(
+    request: &Request,
+    target: &ProxyTarget,
+    client_ip: &str,
+    proto: &str,
+) -> Headers {
+    let mut out = Headers::new();
+    out.push_value(HeaderName::Host, target.host_header.clone());
+    for header in request.headers.iter() {
+        match header.name {
+            HeaderName::Host
+            | HeaderName::ContentLength
+            | HeaderName::Expect
+            | HeaderName::XForwardedFor
+            | HeaderName::XRealIp
+            | HeaderName::XForwardedProto => continue,
+            _ => {}
+        }
+        if is_hop_by_hop(&header.name) && !is_ws_passthrough(&header.name) {
+            continue;
+        }
+        out.push(header.clone());
+    }
+    out.push_value(HeaderName::XForwardedFor, forwarded_for(request, client_ip));
+    out.push_value(HeaderName::XRealIp, client_ip);
+    out.push_value(HeaderName::XForwardedProto, proto);
+    out
+}
+
+/// Whether a hop-by-hop header must be preserved for WebSocket upgrades.
+const fn is_ws_passthrough(name: &HeaderName) -> bool {
+    matches!(
+        name,
+        HeaderName::Connection | HeaderName::Upgrade | HeaderName::Trailer
+    )
+}
+
 /// A copy of `headers` with every hop-by-hop field removed (RFC 9110 §7.6.1):
 /// the standard connection-control fields plus any field named by a
 /// `Connection` token.
@@ -163,7 +206,10 @@ fn forwarded_for(request: &Request, client_ip: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{RewriteError, rewrite_request_headers, rewrite_target, strip_hop_by_hop};
+    use super::{
+        RewriteError, rewrite_request_headers, rewrite_target, rewrite_ws_request_headers,
+        strip_hop_by_hop,
+    };
     use crate::http::{BodyFraming, HeaderName, Headers, Method, Request, Version};
     use crate::net::InetAddr;
     use crate::proxy::config::{ProxyTarget, parse_proxy_pass};
@@ -292,5 +338,37 @@ mod tests {
         assert!(!stripped.contains(&HeaderName::Connection));
         assert!(!stripped.contains(&HeaderName::Custom("x-obsolete".into())));
         assert_eq!(stripped.get_str(&HeaderName::Etag), Some("abc"));
+    }
+
+    #[test]
+    fn ws_request_headers_preserve_upgrade_and_key() {
+        let mut headers = Headers::new();
+        headers.push_value(HeaderName::Host, "example.com");
+        headers.push_value(HeaderName::Connection, "Upgrade");
+        headers.push_value(HeaderName::Upgrade, "websocket");
+        headers.push_value(HeaderName::Custom("sec-websocket-version".into()), "13");
+        headers.push_value(
+            HeaderName::Custom("sec-websocket-key".into()),
+            "dGhlIHNhbXBsZSBub25jZQ==",
+        );
+        headers.push_value(HeaderName::UserAgent, "test");
+        let request = request(b"/chat", headers);
+        let target = ProxyTarget::http(InetAddr::Unix("/tmp/up.sock".into()));
+        let rewritten = rewrite_ws_request_headers(&request, &target, "10.0.0.1", "http");
+        assert_eq!(rewritten.get_str(&HeaderName::Upgrade), Some("websocket"));
+        assert_eq!(rewritten.get_str(&HeaderName::Connection), Some("Upgrade"));
+        assert_eq!(
+            rewritten.get_str(&HeaderName::Custom("sec-websocket-key".into())),
+            Some("dGhlIHNhbXBsZSBub25jZQ==")
+        );
+        assert_eq!(
+            rewritten.get_str(&HeaderName::Custom("sec-websocket-version".into())),
+            Some("13")
+        );
+        assert_eq!(rewritten.get_str(&HeaderName::UserAgent), Some("test"));
+        assert_eq!(
+            rewritten.get_str(&HeaderName::XForwardedFor),
+            Some("10.0.0.1")
+        );
     }
 }

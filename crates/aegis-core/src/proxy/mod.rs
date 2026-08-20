@@ -26,6 +26,7 @@ pub mod exchange;
 pub mod pool;
 pub mod rewrite;
 pub mod upstream;
+pub mod websocket;
 
 pub use config::{ProxyOptions, ProxyTarget, UpstreamScheme, parse_proxy_pass};
 pub use exchange::{ExchangeError, ProxyOutcome, proxy_exchange, proxy_exchange_pooled};

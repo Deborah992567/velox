@@ -34,7 +34,7 @@ use crate::http::{BodyFraming, Request};
 use crate::net::{Connection, SocketTimeoutSide, connect_with_timeout, set_socket_timeout};
 use crate::proxy::config::{ProxyOptions, ProxyTarget};
 use crate::proxy::exchange::{
-    ExchangeError, ProxyOutcome, prepare_response, relay_body, relay_request,
+    BodyRelay, ExchangeError, ProxyOutcome, prepare_response, relay_body, relay_request,
 };
 use crate::proxy::pool::{PoolOptions, PooledConnection, UpstreamPool};
 
@@ -723,6 +723,24 @@ pub fn proxy_exchange_lb<C: Read + Write>(
                 return Err(error);
             }
         };
+        if prepared.relay == BodyRelay::WsRelay {
+            crate::proxy::exchange::clear_ws_timeouts(client, peer.conn_mut());
+            let result = crate::proxy::websocket::ws_relay(client, peer.conn_mut());
+            match result {
+                Ok(()) => {
+                    peer.finish_success(false);
+                    return Ok(ProxyOutcome::Complete);
+                }
+                Err(e) => {
+                    peer.fail();
+                    return if e.kind() == io::ErrorKind::UnexpectedEof {
+                        Err(ExchangeError::UpstreamEof)
+                    } else {
+                        Err(ExchangeError::Upstream(e))
+                    };
+                }
+            }
+        }
         let outcome = match relay_body(client, peer.conn_mut(), prepared) {
             Ok(outcome) => outcome,
             Err(error) => {
