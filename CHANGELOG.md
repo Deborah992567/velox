@@ -267,4 +267,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reports outcomes back to group health; 9 group/balancer/health tests
   including an end-to-end round-robin exchange over two live Unix-socket
   upstreams; 386 tests across the workspace.
+
+### Phase 12 — WebSockets
+- `websocket::handshake`: RFC 6455 upgrade classification (`is_websocket_upgrade`),
+  `accept_key` computation, `build_accept_header`, `client_request` builder;
+  10 handshake tests covering RFC vectors, edge cases, and header validation.
+- `websocket::frame`: full `Frame` encode/decode with masking, extended 16/64-bit
+  lengths, 125-byte control-payload cap, `FrameDecoder` incremental parser, and
+  `MessageDecoder` for reassembling fragmented text/binary messages with UTF-8
+  validation; 19 frame tests including RFC interop vectors.
+- `proxy::websocket`: bidirectional `ws_relay` copying raw bytes between client
+  and upstream until one side EOFs or errors; 3 relay tests (both directions,
+  EOF exit, upstream close).
+- `proxy::exchange`: `prepare_response` detects 101 Switching Protocols (and no
+  longer misclassifies it as an interim 1xx); `is_ws_upgrade_response` guard
+  routes to `BodyRelay::WsRelay`, `clear_ws_timeouts` disables `SO_RCVTIMEO`/`SO_SNDTIMEO`
+  on the upstream before entering the relay. `WsRelay` variant added to `BodyRelay`
+  and handled in both direct and load-balanced exchange paths.
+- `proxy::rewrite`: `rewrite_ws_request_headers` preserves `Upgrade`, `Connection`,
+  and `Sec-WebSocket-*` headers while applying standard proxy header rewriting;
+  `is_ws_passthrough` classifies WebSocket-specific header names.
+- 406 tests across the workspace.
 See [`TODO.md`](TODO.md) for the full phase-by-phase roadmap.

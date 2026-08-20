@@ -13,7 +13,7 @@ benchmark evidence at every milestone. See
 
 ## Status
 
-**Phase 0 — architecture and repository skeleton (current).**
+**Phase 12 — WebSockets (current).**
 
 The roadmap is defined in [`TODO.md`](TODO.md). Progress is tracked in
 [`CHANGELOG.md`](CHANGELOG.md); architectural decisions in

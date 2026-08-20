@@ -55,11 +55,11 @@ future work is listed here; completed items move to `CHANGELOG.md`.
 ## Phase 11 — Load balancing + health checks ✅
 - [x] RR / weighted RR / least-connections, passive + active health, backups
 
-## Phase 12 — WebSockets 🚧
+## Phase 12 — WebSockets ✅
 - [x] Handshake (upgrade classification, accept key, client request builder)
 - [x] Frame codec (encode/decode, masking, extended lengths, limits)
 - [x] ping/pong/close control frames, fragmentation + UTF-8 validation
-- [ ] Proxying (bidirectional streaming upgrade between client and upstream)
+- [x] Proxying (bidirectional streaming upgrade between client and upstream)
 
 ## Phase 13 — FastCGI / SCGI / uWSGI ⬜
 - [ ] ProtocolAdapter trait; FastCGI gateway with pooling/timeouts
