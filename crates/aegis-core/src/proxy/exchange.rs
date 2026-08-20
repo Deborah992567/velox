@@ -504,10 +504,9 @@ pub(crate) fn prepare_response<C: Read + Write, U: Read + Write>(
     let framing = match relay {
         BodyRelay::Fixed(len) => BodyFraming::Length(len),
         BodyRelay::DecodeChunked | BodyRelay::EncodeRawChunked => BodyFraming::Chunked,
-        BodyRelay::None
-        | BodyRelay::DecodeRaw
-        | BodyRelay::RawToClose
-        | BodyRelay::WsRelay => BodyFraming::None,
+        BodyRelay::None | BodyRelay::DecodeRaw | BodyRelay::RawToClose | BodyRelay::WsRelay => {
+            BodyFraming::None
+        }
     };
     let mut out = Vec::new();
     encode_head(&relayed, framing, &mut out).map_err(ExchangeError::RequestEncode)?;
@@ -527,9 +526,10 @@ fn wrap_if(sent: bool, error: ExchangeError) -> ExchangeError {
 
 /// Clear socket timeouts on both sides of a WebSocket relay so idle
 /// connections do not time out. Best-effort; ignores errors.
+#[allow(clippy::needless_pass_by_ref_mut)]
 pub(crate) fn clear_ws_timeouts<C: Read + Write, U: Read + Write + AsRawFd>(
     _client: &mut C,
-    #[allow(clippy::needless_pass_by_ref_mut)] upstream: &mut U,
+    upstream: &mut U,
 ) {
     let _ = set_socket_timeout(upstream.as_raw_fd(), SocketTimeoutSide::Read, None);
     let _ = set_socket_timeout(upstream.as_raw_fd(), SocketTimeoutSide::Write, None);

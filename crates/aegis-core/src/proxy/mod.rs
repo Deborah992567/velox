@@ -23,6 +23,7 @@
 
 pub mod config;
 pub mod exchange;
+pub mod gateway;
 pub mod pool;
 pub mod rewrite;
 pub mod upstream;
