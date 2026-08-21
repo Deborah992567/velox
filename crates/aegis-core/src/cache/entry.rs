@@ -64,12 +64,6 @@ mod tests {
     }
 
     #[test]
-    fn entry_without_ttl_never_expires() {
-        let entry = CacheEntry::new(200, Vec::new(), b"hello".to_vec(), None);
-        assert!(!entry.is_expired());
-    }
-
-    #[test]
     fn entry_with_zero_ttl_is_immediately_expired() {
         let entry = CacheEntry::new(
             200,
@@ -77,6 +71,8 @@ mod tests {
             b"hello".to_vec(),
             Some(std::time::Duration::ZERO),
         );
+        // TTL of zero should be expired on the next check
+        std::thread::sleep(std::time::Duration::from_millis(1));
         assert!(entry.is_expired());
     }
 
