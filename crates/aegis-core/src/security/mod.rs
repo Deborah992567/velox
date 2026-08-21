@@ -2,6 +2,7 @@
 //!
 //! Phase 22: Automatic injection of security headers into responses.
 
+pub mod slowloris;
 pub mod smuggling;
 
 use crate::http::{HeaderName, Headers};
