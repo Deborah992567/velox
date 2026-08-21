@@ -2,6 +2,8 @@
 //!
 //! Phase 22: Automatic injection of security headers into responses.
 
+pub mod smuggling;
+
 use crate::http::{HeaderName, Headers};
 
 /// Configuration for security headers.
