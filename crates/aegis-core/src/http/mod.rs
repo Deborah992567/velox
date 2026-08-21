@@ -10,6 +10,8 @@
 
 use std::fmt;
 
+pub mod body_limit;
+pub mod error_pages;
 pub mod http1;
 pub mod http2;
 pub mod limits;

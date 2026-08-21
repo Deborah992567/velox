@@ -8,6 +8,7 @@
 //!   destinations with buffering and rotation support.
 //! * [`LogFormat`] — text or JSON rendering.
 
+pub mod access;
 pub mod format;
 pub mod level;
 pub mod logger;
