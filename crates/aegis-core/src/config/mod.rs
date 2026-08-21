@@ -14,8 +14,10 @@ pub mod ast;
 pub mod lexer;
 pub mod parser;
 pub mod validator;
+pub mod watcher;
 
 pub use ast::{ConfigNode, ConfigRoot};
 pub use lexer::{Pos, Token, TokenKind, tokenize};
 pub use parser::{parse, parse_named};
 pub use validator::{ConfigValidator, validate};
+pub use watcher::{ConfigWatcher, ReloadEvent, ReloadInfo, ReloadPolicy};
