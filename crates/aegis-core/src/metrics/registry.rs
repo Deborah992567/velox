@@ -10,9 +10,9 @@ use super::histogram::Histogram;
 /// A metric registry that holds all registered metrics.
 #[derive(Debug)]
 pub struct Registry {
-    counters: RwLock<HashMap<String, Arc<Counter>>>,
-    gauges: RwLock<HashMap<String, Arc<Gauge>>>,
-    histograms: RwLock<HashMap<String, Arc<Histogram>>>,
+    pub(crate) counters: RwLock<HashMap<String, Arc<Counter>>>,
+    pub(crate) gauges: RwLock<HashMap<String, Arc<Gauge>>>,
+    pub(crate) histograms: RwLock<HashMap<String, Arc<Histogram>>>,
 }
 
 impl Registry {

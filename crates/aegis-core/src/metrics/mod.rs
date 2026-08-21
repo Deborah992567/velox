@@ -5,4 +5,5 @@
 pub mod counter;
 pub mod gauge;
 pub mod histogram;
+pub mod prometheus;
 pub mod registry;
