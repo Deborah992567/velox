@@ -68,16 +68,16 @@ impl ConnectionTimer {
 
     pub fn is_timed_out(&self, config: &SlowlorisConfig) -> Option<TimedOutReason> {
         let since_accept = self.elapsed_since_accept();
-        if since_accept > config.request_timeout {
+        if since_accept >= config.request_timeout {
             return Some(TimedOutReason::RequestTimeout);
         }
 
-        if self.first_header_at.is_none() && since_accept > config.connect_timeout {
+        if self.first_header_at.is_none() && since_accept >= config.connect_timeout {
             return Some(TimedOutReason::ConnectTimeout);
         }
 
         if self.first_header_at.is_some()
-            && self.elapsed_since_last_activity() > config.header_timeout
+            && self.elapsed_since_last_activity() >= config.header_timeout
         {
             return Some(TimedOutReason::HeaderTimeout);
         }

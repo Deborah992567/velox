@@ -49,6 +49,7 @@ pub mod proxy;
 pub mod ratelimit;
 pub mod routing;
 pub mod security;
+pub mod shutdown;
 pub mod static_files;
 pub mod timers;
 pub mod tls;
