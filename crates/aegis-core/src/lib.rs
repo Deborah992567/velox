@@ -42,6 +42,7 @@ pub mod core;
 pub mod event_loop;
 pub mod http;
 pub mod logging;
+pub mod metrics;
 pub mod net;
 pub mod platform;
 pub mod proxy;
