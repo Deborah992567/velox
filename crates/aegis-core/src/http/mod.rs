@@ -14,6 +14,7 @@ pub mod http1;
 pub mod http2;
 pub mod limits;
 pub mod percent;
+pub mod status;
 
 /// An HTTP request method (RFC 9110 §9.1).
 ///
