@@ -20,4 +20,5 @@
 
 pub mod host;
 pub mod location;
+pub mod params;
 pub mod router;

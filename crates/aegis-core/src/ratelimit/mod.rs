@@ -4,5 +4,6 @@
 //! IP-based access control lists.
 
 pub mod acl;
+pub mod headers;
 pub mod limiter;
 pub mod token_bucket;

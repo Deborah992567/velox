@@ -5,4 +5,5 @@
 //! compress response bodies without knowing the algorithm.
 
 pub mod codec;
+pub mod config;
 pub mod negotiate;

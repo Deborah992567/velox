@@ -2,6 +2,7 @@
 //!
 //! Phase 22: Automatic injection of security headers into responses.
 
+pub mod nonce;
 pub mod slowloris;
 pub mod smuggling;
 

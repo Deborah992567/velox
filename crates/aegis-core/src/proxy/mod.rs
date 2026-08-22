@@ -24,7 +24,11 @@
 pub mod config;
 pub mod exchange;
 pub mod gateway;
+pub mod health;
+pub mod lb_health;
 pub mod pool;
+pub mod pool_stats;
+pub mod retry;
 pub mod rewrite;
 pub mod upstream;
 pub mod websocket;

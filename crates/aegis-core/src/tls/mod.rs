@@ -21,6 +21,7 @@
 pub mod config;
 pub mod keypair;
 pub mod resolver;
+pub mod session_cache;
 pub mod stream;
 
 pub use config::{TlsConfig, TlsServerOptions, TlsVersion};

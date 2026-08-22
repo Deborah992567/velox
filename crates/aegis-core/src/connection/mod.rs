@@ -35,6 +35,8 @@
 //! [`ReadOutcome::Capacity`] signals the producer (the peer, or upstream) to
 //! stop.
 
+pub mod conn_stats;
+
 use crate::buffer::IoBuf;
 use crate::event_loop::{Reactor, Slab};
 use crate::net;

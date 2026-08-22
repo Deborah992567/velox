@@ -15,5 +15,6 @@
 //! non-fragmentation, continuation ordering, masking) and §8.1 (close codes
 //! and UTF-8), with [`frame::FrameLimits`] bounding frame and message sizes.
 
+pub mod config;
 pub mod frame;
 pub mod handshake;

@@ -5,3 +5,4 @@
 pub mod entry;
 pub mod lru;
 pub mod store;
+pub mod warming;
