@@ -276,6 +276,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lengths, 125-byte control-payload cap, `FrameDecoder` incremental parser, and
   `MessageDecoder` for reassembling fragmented text/binary messages with UTF-8
   validation; 19 frame tests including RFC interop vectors.
+- `websocket::config`: configurable frame/message sizes, timeouts, compression,
+  buffer sizes; presets for strict (untrusted) and relaxed (internal) clients.
 - `proxy::websocket`: bidirectional `ws_relay` copying raw bytes between client
   and upstream until one side EOFs or errors; 3 relay tests (both directions,
   EOF exit, upstream close).
@@ -288,4 +290,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `Sec-WebSocket-*` headers while applying standard proxy header rewriting;
   `is_ws_passthrough` classifies WebSocket-specific header names.
 - 406 tests across the workspace.
+
+### Phase 13 — FastCGI / SCGI / uWSGI
+- Gateway protocol adapters for FastCGI, SCGI, and uWSGI with the
+  `ProtocolAdapter` trait for protocol-agnostic upstream communication.
+- FastCGI gateway with connection pooling, request multiplexing, and
+  configurable timeouts.
+
+### Phase 14 — Compression
+- `compression::codec`: `GzipCodec`, `DeflateCodec`, `ZlibCodec` implementing
+  the `Codec` trait with streaming encode/decode.
+- `compression::negotiate`: RFC 9110 quality-value `Accept-Encoding` parsing
+  and server-side algorithm selection.
+- `compression::config`: `CompressionAlgo` enum (Gzip/Deflate/Zstd/Brotli/Zlib),
+  `CompressionLevel` presets, per-algorithm min-size thresholds, and
+  `ClientPreference` parser with quality-based `best_match()`.
+- `flate2` added as a production dependency per ADR 0003.
+
+### Phase 15 — Caching
+- `cache::entry`: `CacheEntry` with TTL-based expiry and content hashing.
+- `cache::lru`: `LruTracker` with O(1) touch/eviction via doubly-linked list.
+- `cache::store`: `CacheStore` with byte-budget enforcement and LRU eviction.
+- `cache::warming`: `WarmingHintTracker` for proactive content prefetching
+  based on access pattern analysis (recency + frequency scoring).
+
+### Phase 16 — Rate limiting + access control
+- `ratelimit::token_bucket`: `TokenBucket` with configurable refill rate.
+- `ratelimit::limiter`: per-key `RateLimiter` with concurrent access.
+- `ratelimit::acl`: `IpCidr` CIDR matching and `Acl` first-match-wins rules.
+- `ratelimit::headers`: rate limit response headers (RFC 6585) —
+  `ratelimit-limit`, `ratelimit-remaining`, `ratelimit-reset`, `ratelimit-policy`,
+  and `retry-after` for 429 responses.
+
+### Phase 18 — Graceful reload / shutdown
+- `config::watcher`: `ConfigWatcher` with debounce policies (Immediate,
+  Debounced, Manual) for file-based hot-reload detection.
+- `shutdown::ShutdownCoordinator`: atomic phase transitions (Running →
+  Draining → ShuttingDown → Terminated), connection counting, drain timeout.
+
+### Phase 19 — HTTP/2
+- `http::http2::frame`: `FrameHeader`, `FrameType`, `SettingId` parsing
+  and serialization for HTTP/2 binary framing.
+- `http::http2::hpack`: HPACK integer encoding/decoding, static table
+  with 61 entries (RFC 7541), `Encoder`/`Decoder` with dynamic table.
+- `http::http2::stream`: `StreamState` FSM, `FlowWindow` for flow control,
+  `StreamManager` with concurrent stream limiting.
+
+### Phase 23 — Metrics
+- `metrics::counter`: `Counter` — atomic u64 with inc/add/reset.
+- `metrics::gauge`: `Gauge` — atomic i64 with inc/dec/set.
+- `metrics::histogram`: bucket-based histogram with snapshot support.
+- `metrics::registry`: `Registry` with Arc-based lazy metric creation.
+- `metrics::prometheus`: `render()` producing Prometheus exposition text format.
+
+### Phase 24 — Security hardening
+- `security::headers`: `SecurityHeaders` with defaults/minimal presets,
+  automatic injection of CSP, HSTS, X-Content-Type-Options, X-Frame-Options,
+  X-XSS-Protection, Referrer-Policy, Permissions-Policy.
+- `security::smuggling`: `SmugglingCheck` detecting CL/TE conflicts,
+  duplicate headers, and body length verification.
+- `security::slowloris`: `SlowlorisConfig`, `ConnectionTimer`, and
+  `ConnectionTracker` with sweep for slow-header/connection attacks.
+- `security::nonce`: `Nonce` generator for CSP inline script/style tags
+  and `CspPolicy` builder for composing Content-Security-Policy headers.
+
+### Phase 25 — Server infrastructure
+- `http::status`: built-in JSON status page with uptime, connection counts,
+  and health check endpoint.
+- `http::error_pages`: HTML error page templates with customizable branding.
+- `http::body_limit`: `BodyLimit` with per-route size enforcement and
+  `BodyTracker` for incremental byte accounting.
+- `logging::access`: access log formatter — CLF, combined, and JSON output
+  formats with proper escaping and upstream/request-id fields.
+- `routing::params`: route parameter extraction with `:name` and `*`
+  wildcard pattern matching.
+- `tls::session_cache`: TLS session ticket cache with TTL-based eviction.
+- `proxy::health`: `HealthTracker` with configurable failure/success
+  thresholds and `ClusterHealth` summary.
+- `proxy::retry`: `RetryPolicy` with exponential backoff and method safety.
+- `proxy::pool_stats`: `PoolMetrics` with atomic counters and `ConnectionAge`
+  for per-connection age/idle tracking.
+- `proxy::lb_health`: LB health policy integration (failover/weighted/strict).
+- `connection::conn_stats`: server-wide accept/close/error counters with peak.
+- 718 tests across the workspace.
+
 See [`TODO.md`](TODO.md) for the full phase-by-phase roadmap.
